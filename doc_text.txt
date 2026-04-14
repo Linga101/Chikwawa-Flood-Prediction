@@ -1,0 +1,251 @@
+FLOOD RISK PREDICTION IN CHIKWAWA:
+A MACHINE LEARNING SOLUTION
+A PROPOSAL SUBMITTED TO FACULTY OF SCIENCE TECHNOLOGY AND
+INNOVATION DEPARTMENT OF INFORMATION AND COMMUNICATION
+TECHNOLOGY IN PARTIAL FULFILLMENT OF THE AWARD OF BACHELORS
+OF SCIENCE DEGREE IN DATA SCIENCE
+SUBMITTED BY
+ZAHEERAH ABDULRASHID (BSDS0123)
+RODRICK KAPOPO (BSVCA1722)
+FAVOUR KAMPANGIRE (BSDS1523)
+LOUIS MWAMSAKO (BSDS2523)
+JONATHAN BANDA (BSDS0323)
+GEORGE MAPELERA (BSDS2123)
+LINGALITHU KADEWELE (BSDS1323)
+SUPERVISOR
+DR. CHIMANGO NYASULU
+14
+TH
+ NOVEMBER, 2025.
+ABSTRACT
+Chikwawa District in Malawi’s Lower Shire Valley is one of the most flood-prone areas in sub-Saharan Africa, suffering repeated catastrophic flooding (2015, 2019, 2022, 2023, and 2024–2025) that destroys homes, crops, and livelihoods while deepening chronic poverty and food insecurity. Existing early-warning systems rely on sparse river gauges and delayed satellite data, delivering insufficient lead time and spatial resolution for effective community-level action. This research develops and evaluates a machine learning-based flood prediction system tailored for Chikwawa that integrates multi-source satellite observations (GPM, Sentinel-1, soil moisture, topography), limited ground telemetry, and historical flood records to generate probabilistic, high-resolution (≤1 km) inundation forecasts with 5–10-day lead times. By addressing key implementation challenges—data scarcity, computational constraints, and last-mile dissemination—the proposed system aims to enable anticipatory humanitarian action, reduce loss of life and assets, and support forecast-based financing in one of Africa’s most vulnerable rural districts.
+Table of Contents
+ TOC \h \u \z \t "Heading 1,1,Heading 2,2,Heading 3,3,"
+ABSTRACT
+1
+1.0 INTRODUCTION
+3
+1.1 Background Story
+3
+1.2 Problem Statement
+4
+1.3 Objectives
+5
+1.3.1 Main objectives:
+5
+1.3.2 Specific objectives:
+5
+1.4 Justification
+5
+1.5 Scope
+6
+2.0 LITERATURE REVIEW
+7
+2.1 Floods in Chikwawa
+7
+2.2 Challenges in Implementing Predictive Models in Malawi
+7
+2.3 Role of Machine Learning in Flood Prediction for Chikwawa
+8
+3.0 METHODOLOGY
+9
+3.1 Research Design
+9
+3.2 Data Collection
+9
+3.3 Data Preprocessing
+9
+3.4 Model Development
+10
+3.5 Model Evaluation
+10
+1.0 INTRODUCTION
+1.1 Background Story
+Chikwawa is a district located in the southern region of Malawi, within the lower shire. It is known for being one of the most flood prone regions in sub-Saharan Africa. The vulnerability of Chikwawa rises due to a combination of physical, social, economic and climatic factors in the area. Heavy rains in the uplands negatively affect the lower plane of Chikwawa due to concentrate runoffs to the lower valley, causing flash floods and inundation [1], [2].Climate change and extreme weather have fluctuated the rates of floods with cyclones  occurrences occurring within the space of four years; idai in 2019, Ana in 2022 and Freddy in 2023 [3].
+Flooding causes a number of negative effects in communities affected, food insecurity is one of the negative effects in of floods due to water locking conditions of the land agricultural activities are inevitable due to extreme weather, and whether sustainable land management (SLM) practices help shield crop production losses from extreme events [4], In Chikwawa subsistent farmers loss 70-100 percent of their annual maize, sorghum and rice harvests in major flood years [5], [6]. Stagnated floodwaters are google breeding grounds for mosquitoes and simplify faecaloral  transmission of cholera, Chikwawa recorded over 1,200 cases of cholera and 38 deaths within a week in the 2019 floods- one of the worst outbreaks in Malawi’s history [7]
+Implementation of flood forecasting techniques are currently used by the Department of Climate Change and Meteorological Services (DCCMS) to predict the likelihood of flood occurrences using methodologies like; Numerical Weather Prediction (NWP) that analyses weather and hydrological data, NWP models estimate rainfall amounts, runoff levels, and flood potential [8]. 
+Machine Learning (ML) is the ability to train computers on how to automate instructions without human intervention. This technology offers leverage to betterment on top of current flood forecasting methods or techniques on a global scale by having the processes done autonomously and more efficiently with less room for error [9]. Development of robust and accurate predictive models contributes highly to water recourse management strategies, policy suggestions and analysis, and further evacuation modeling systems to manage effective means to clear out residents in the flooded areas. Globally flood risk prediction models are of great impact as they can be done using sensors or quantitative data to train machine learning models to predict short-term and long-term floods [10]. Prior to the disaster a country is supposed to be economically strong to handle the losses irrespective of the size as there is a need to coordinate efforts in efficient and effective countermeasure selection based on evaluation pre and post strategies [11].
+1.2 Problem Statement
+Despite being one of the most flood-prone districts in Malawi, Chikwawa District continues to suffer from devastating annual and sometimes catastrophic flooding events with little to no advance notice that is precise, timely, and relevant at the local community level. The Lower Shire Valley’s unique geography—characterized by extremely low-lying terrain, the massive Shire River (the only outlet of Lake Malawi), numerous tributaries, extensive floodplains, and heavy runoff from surrounding highlands—creates a highly complex and localized flood regime that national-level forecasting systems simply cannot capture with sufficient granularity or accuracy.
+Current early-warning mechanisms in Malawi are predominantly issued from the capital and rely on broad, country-wide meteorological and hydrological models. These generalized forecasts fail to account for Chikwawa-specific triggers such as rapid Shire River level rises, backflow from blocked tributaries, flash flooding from localized intense rainfall, siltation-induced riverbed elevation, and the amplifying effects of deforestation and settlement expansion in vulnerable floodplains. As a result, warnings frequently arrive too late, lack village- or Traditional Authority-level detail, and do not reach remote rural households in time for meaningful action. The consequences of this predictive gap are severe and recurrent:
+Delayed or poorly coordinated evacuations leading to preventable loss of human life
+Widespread destruction of homes, schools, health facilities, roads, and bridges
+Massive crop losses (especially maize, cotton, sorghum, and sugarcane) and livestock deaths that plunge farming households into food insecurity and debt
+Repeated large-scale displacement of populations into temporary camps
+Heightened post-flood outbreaks of cholera, malaria, and other waterborne diseases due to contaminated water sources
+Long-term economic stagnation as families lose assets, miss planting seasons, and struggle to recover financially year after year
+There is therefore an urgent and critical need for a localized, machine learning–driven flood risk prediction system custom-built for Chikwawa District. By integrating historical and real-time data on rainfall intensity, Shire River discharge, soil moisture, land-use/land-cover changes, elevation, and past flood extents, such a model can generate highly accurate, hyper-localized, and timely early warnings delivered days in advance to specific communities, extension workers, and district disaster officials. This shift from reactive disaster response to proactive, data-driven prevention has the potential to dramatically reduce mortality, protect livelihoods, minimize infrastructure damage, and foster greater resilience among Chikwawa’s vulnerable population.
+1.3 Objectives
+1.3.1 Main objectives:
+This study is aimed at developing a flood risk prediction system that analyses environmental and historical data to predict the likelihood of floods occurring in Chikwawa district. This prediction may help with early warning information to support disaster preparation and help reduce effects caused by floods.
+1.3.2 Specific objectives:
+Identify the key factors contributing to flooding in Chikwawa.
+Develop a predictive model for flood occurrence in Chikwawa using historical climate data.
+Assess the potential impact of predicted floods on communities and infrastructure in Chikwawa.
+1.4 Justification
+Chikwawa District in the Lower Shire is one of the most flood-affected areas in Malawi. The district lies on a flat floodplain where floods occur after heavy rainfall in the Upper Shire and when the Shire River overflows. Poor drainage in some communities also increases the impact of these floods. These conditions lead to loss of life, damage to homes and displacement of families. Many people depend on farming so they suffer crop losses and livestock deaths whenever floods occur. This makes the district highly vulnerable during every rainy season.
+Current early-warning information is not strong at community level. Most alerts come from national systems that are not detailed enough for village conditions. Communities receive warnings late or sometimes do not receive any at all. This gap exposes households to avoidable risks because they do not get the right information at the right time.
+A localized machine-learning flood prediction system will help solve this problem. It will give earlier and more accurate alerts that match the specific conditions of Chikwawa villages. It will support DCCMS, DWR and DoDMA in planning and decision-making before a flood happens. The system will help households protect crops, livestock and property. It will reduce economic losses for farmers and increase community safety during the rainy season. 
+The model is designed to improve every year as more data is collected so it becomes a sustainable long-term solution. It focuses on preventing disaster impacts rather than reacting after damage has already occurred. This approach will strengthen local resilience and support better emergency response in the Lower Shire. Over time the system will help protect livelihoods and improve disaster management efforts across Chikwawa District.
+1.5 Scope 
+This study aims to develop a machine learning-based flood risk prediction system specifically for Chikwawa District, one of the most flood-prone rural areas in Malawi. There has been frequent severe flooding in Chikwawa due to its low-lying nature, proximity to the Shire River, and limited early warning mechanisms, hence making communities highly vulnerable to disasters.
+This will involve the design, development, and evaluation of a prediction system that incorporates district-specific environmental, hydrological, and geospatial datasets to estimate the likelihood and severity of floods. The data will be sourced from historical rainfall records from Chikwawa, river discharge levels of the Shire River, soil moisture content, DEMs, land-use patterns, and remote sensing satellite observations capturing seasonal variations and extreme weather events that may affect the district.
+These datasets will be heavily preprocessed, involving cleaning, feature engineering, spatial analysis, and normalization in order to prepare the right input variables for machine learning algorithms. Various algorithms will be applied and compared, including Time-series models for river level forecasting and rainfall pattern in Chikwawa. Classification models such as Random Forest and Gradient Boosting for categorizing flood risk.
+Temporal trends, hydrological triggers, and spatial vulnerabilities specific to Chikwawa will remain the focus of the study, while model performance will be checked against the actual occurrences of floods in the district using accuracy metrics, confusion matrices, and other evaluation frameworks.
+Finally, the study will be proposing a prototype early warning framework for Chikwawa District that would consist of practical recommendations for the local government authorities at both national and local levels, disaster management agencies, and community-level preparedness for strengthening resilience and reducing flood impacts within the district area. 
+2.0 LITERATURE REVIEW
+This chapter explains the challenges regarding the implementation of flood prediction frameworks in Chikwawa. It also explains how LightGBM and other boosting models can play an important role in addressing such problems, based on the findings and analyses already presented in various previous studies.
+2.1 Floods in Chikwawa
+Chikwawa District in the Lower Shire Valley has experienced some of the most devastating floods in southern Africa over the past decade. Major events include the January–March 2015 floods, Tropical Cyclone Idai in March 2019, Tropical Cyclone Ana in January 2022, and the record-breaking Tropical Cyclone Freddy in March 2023. The 2015 floods displaced over 110,000 people in Chikwawa and Nsanje combined and caused 48 deaths in the district alone [12]. Cyclone Idai in 2019 inundated 86,974 hectares of cropland, destroyed or damaged 15,437 houses, displaced 87,000 people, and resulted in at least eight fatalities in Chikwawa [5], [13]. Cyclone Freddy (2023) affected 11 of Chikwawa’s 12 traditional authorities, destroying an additional 8,492 hectares of crops and damaging critical infrastructure [14].
+These events reveal a clear increasing trend in both frequency and severity, largely attributed to climate change and land-use changes in the upper Shire catchment [3]. Long-term socio-economic studies confirm that repeated flooding has deepened chronic food insecurity, increased child malnutrition, and triggered distress migration from rural areas [15], [16].
+2.2 Challenges in Implementing Predictive Models in Malawi
+Despite global advances in flood forecasting, operational implementation in data-scarce, resource-constrained environments such as Chikwawa faces multiple barriers:
+Data scarcity and quality: Malawi has only ~20 functional river gauges for the entire Shire Basin, many of which are vandalised or offline during extreme events. Historical flood extent maps remain incomplete, and sub-daily rainfall data are largely absent outside major stations [17], [18].
+Limited computational and institutional capacity: District-level disaster offices often lack reliable electricity, high-speed internet, and personnel trained in advanced modelling [19].
+Last-mile communication gaps: Even when forecasts exist, dissemination relies on SMS and community radio, reaching only 60–80 % of at-risk households in Chikwawa, with significant delays in remote areas [20].
+Funding and sustainability: Most early-warning projects are donor-driven with 3–5-year horizons; long-term maintenance of sensors, models, and training remains uncertain [21].
+These intertwined technical, institutional, and socio-cultural challenges explain why, despite decades of investment, lead times in Chikwawa rarely exceed 48 hours and hyper-local accuracy remains poor.
+2.3 Role of Machine Learning in Flood Prediction for Chikwawa
+Machine learning (ML) offers a paradigm shift for flood prediction in data-sparse regions by extracting predictive signals from heterogeneous, imperfect datasets that traditional physics-based models struggle to utilize.
+Recent studies demonstrate that ML approaches—particularly random forests, gradient boosting (XGBoost, LightGBM). A 2021 Zindi Africa competition achieved > 90 percent pixel-level accuracy in binary flood mapping for southern Malawi using only satellite-derived rainfall, topography, soil moisture, and vegetation indices [22].
+Hybrid physics-ML frameworks further improve performance by incorporating river gauge data when available and falling back on satellite proxies during gaps [23]. Ensemble techniques reduce uncertainty in probabilistic forecasting, critical for triggering forecast-based financing actions [24]. Importantly, transfer learning and domain adaptation techniques allow models pre-trained on data-rich basins elsewhere to be fine-tuned with limited local labels, addressing Malawi’s historical data scarcity [25].
+In summary, machine learning transforms flood prediction from a data-constrained, rule-based exercise into a flexible, scalable, and continuously improving system—exactly what Chikwawa requires to move from reactive response to anticipatory action.
+3.0 METHODOLOGY
+The procedures, tools, and analytical approaches that will be used in the development of a machine-learning-based flood prediction model for Chikwawa are outlined in this chapter. The methodology will be composed of five key components: research design, data collection, data preprocessing, model development, and model evaluation.
+3.1 Research Design 
+This research study presents a quantitative data-driven experimental design. This will be achieved by collecting historical data, hydrological and environmental data, extracting relevant features and developing machine learning models that can predict flood-risk levels. 
+The methodological flow consists of
+Data acquisition 
+Data cleaning and preprocessing 
+feature engineering 
+Model training and hyperparameter tuning 
+Model evaluation
+Interpretation and formulation of recommendation
+3.2 Data Collection
+Data used in the study will be attained from secondary sources embracing open data sources with the several features as targets but mainly focusing on geospatial, meteorological, hydrological data features.
+3.3 Data Preprocessing 
+Collected datasets often include missing values, noise, and inconsistencies. The preprocessing phase will address these issues and prepare high-quality input for the model.
+Steps include: 
+Data Cleaning
+Removal of duplicate entries
+Missing values handling: imputation using mean, interpolation, or model-based techniques
+Temporal alignment of rainfall and river-level time series
+Spatial Resampling
+Resampling geospatial datasets to a consistent spatial resolution
+Feature Engineering 
+Deriving lagged features of rainfall, for example, previous 3, 7, or 14 days
+Generating runoff indices
+Encoding land-use categories
+Combining environmental variables into a structured dataset
+Normalization and scaling 
+Data attributes have different units, including elevation versus rainfall versus river flow, which will be normalized using Min-Max or Standard Scaling.
+Data Splitting
+The dataset will be divided into:
+Train Set: 70%
+Validation set 15%
+Testing set: 15%
+In case of imbalance in the data, such as few flood cases compared to non-flood cases, stratified sampling will be considered.
+3.4 Model Development
+The predictive model will be developed using selected machine learning algorithms that fit the data type and are under the scope of the research. The study will experiment with two or three models to ensure a fair comparison. 
+Candidate Models
+Random Forest Classifier
+Gradient Boosting Machine (e.g., XGBoost, LightGBM)
+These algorithms have been selected because:
+They handle nonlinear relationships well.
+They operate on small to medium-sized datasets.
+They are suitable for mixed numerical and categorical data.
+They have demonstrated performance in environmental prediction tasks.
+Model Training
+Each model will be trained using the processed dataset and optimized using techniques such as:
+Grid Search or Random Search
+cross-validation
+To improve predictive performance, hyperparameters such as the number of trees, learning rate, maximum tree depth will be tuned.
+3.5 Model Evaluation 
+Evaluation will be based on the accuracy and reliability of flood prediction. The performance metrics include:
+Classification Metrics (in case of predicting flood risk levels):
+Accuracy
+Precision
+Recall
+F1-score
+Confusion Matrix
+Comparison will be made between at least two models to identify which yields the best performance under rural data constraints. The best performing model will be selected for the final predictive system.
+.
+REFERENCES
+[1]
+M. A. M. Manyuchi, “Geography of flood risk in the Lower Shire Valley, Malawi,” 
+J. Geogr. Reg. Plan.
+, vol. 12, no. 3, pp. 52–62, 2019, doi: 10.5897/JGRP2019.0732.
+[2]
+M. L. Mul and others, “Hydrological assessment of the 2019 floods in the Lower Shire, Malawi,” 
+Hydrol. Earth Syst. Sci. Discuss.
+, 2020, doi: 10.5194/hess-2020-312.
+[3]
+Intergovernmental Panel on Climate Change (IPCC), 
+Climate Change 2022: Impacts, Adaptation, and Vulnerability
+. Cambridge University Press, 2022.
+[4]
+N. McCarthy, T. Kilic, J. Brubaker, S. Murray, and A. de la Fuente, “Droughts and floods in Malawi: impacts on crop production and the performance of sustainable land management practices under weather extremes,” 
+Environ. Dev. Econ.
+, vol. 26, no. 5–6, pp. 432–449, 2021.
+[5]
+Government of Malawi, “Malawi 2019 Floods Post Disaster Needs Assessment (PDNA) Report,” Department of Disaster Management Affairs (DoDMA), Lilongwe, May 2019. [Online]. Available: https://www.gfdrr.org/sites/default/files/publication/Malawi_PDNA_2019.pdf
+[6]
+World Food Programme, “Malawi Floods Emergency Food Security Assessment,” World Food Programme (WFP) Malawi, Apr. 2019. [Online]. Available: https://reliefweb.int/report/malawi/malawi-floods-emergency-food-security-assessment-april-2019
+[7]
+Ministry of Health Malawi and World Health Organization, “Cholera Outbreak Situation Report,” Ministry of Health Malawi, Apr. 2019. [Online]. Available: https://www.who.int/emergencies/disease-outbreak-news/item/2019-DON-231
+[8]
+Department of Climate Change and Meteorological Services (DCCMS), “Flash Flood Warnings: What You Need to Know Before It’s Too Late,” 
+DCCMS News
+, Apr. 2025, [Online]. Available: https://www.metmalawi.gov.mw/news/flash-flood-warnings-what-you-need-to-know-before-its-too-late/
+[9]
+S. S. Refadah, “Development in flood forecasting: A comprehensive review of complex and machine learning models,” 
+Phys. Chem. Earth Parts ABC
+, p. 103975, 2025.
+[10]
+A. Mosavi, P. Ozturk, and K. Chau, “Flood prediction using machine learning models: Literature review,” 
+Water
+, vol. 10, no. 11, p. 1536, 2018.
+[11]
+K. Hansson, M. Danielson, and L. Ekenberg, “A framework for evaluation of flood management strategies,” 
+J. Environ. Manage.
+, vol. 86, no. 3, pp. 465–480, 2008.
+[12]
+Government of Malawi, “2015 Floods Post Disaster Needs Assessment Report,” Department of Disaster Management Affairs (DoDMA), Lilongwe, 2015.
+[13]
+World Bank, “Malawi Rapid Damage and Loss Assessment: Cyclone Idai,” World Bank Group, Washington, DC, 2019.
+[14]
+United Nations Office for the Coordination of Humanitarian Affairs (UN OCHA), “Malawi: Tropical Cyclone Freddy Flash Appeal,” Mar. 2023. [Online]. Available: https://reliefweb.int/report/malawi/malawi-tropical-cyclone-freddy-flash-appeal-march-2023
+[15]
+M. Chibwana, L. Kamwanja, and A. Phiri, “Long-term impacts of the 2019 floods on child nutrition in Chikwawa District,” 
+Malawi Med. J.
+, vol. 33, no. 2, pp. 112–119, 2021, doi: 10.4314/mmj.v33i2.6.
+[16]
+C. Wilkinson, M. Mwale, and R. Holm, “Asset loss and recovery trajectories after the 2019 floods in southern Malawi,” 
+Disasters
+, vol. 46, no. 3, pp. 678–702, 2022, doi: 10.1111/disa.12512.
+[17]
+Department of Climate Change and Meteorological Services (DCCMS) and UNDP, “Strengthening Climate Information and Early Warning Systems in Malawi,” 2018.
+[18]
+M. L. Mul and others, “Hydrological assessment of the 2019 floods in the Lower Shire, Malawi,” 
+Hydrol. Earth Syst. Sci. Discuss.
+, 2020, doi: 10.5194/hess-2020-312.
+[19]
+D. D. Chinguwo and D. Deus, “Assessment of community-based flood early warning system in Malawi,” 
+Jàmbá J. Disaster Risk Stud.
+, vol. 14, no. 1, pp. 1–10, 2022, doi: 10.4102/jamba.v14i1.1166.
+[20]
+PrepareCenter, “Assessment of Early Action for Flood Protection in Makhuwira.” Apr. 2025. [Online]. Available: https://preparecenter.org/resource/early-action-makhuwira-flood-response/
+[21]
+World Bank, “Malawi – Shire River Basin Management Project (Phase II),” 2024. [Online]. Available: https://projects.worldbank.org/en/projects-operations/project-detail/P164608
+[22]
+Zindi Africa, “Flood Prediction in Southern Africa.” 2021. [Online]. Available: https://zindi.africa/competitions/flood-prediction-in-southern-africa
+[23]
+A. M. Nyirenda and others, “Machine learning based flood forecasting using multi-source data in Malawi,” 
+Water
+, vol. 15, no. 8, p. 1492, 2023, doi: 10.3390/w15081492.
+[24]
+Malawi Red Cross Society, “Forecast-based Financing Early Action Protocol – Floods,” Lilongwe, 2022.
+[25]
+M. Reichstein, G. Camps-Valls, B. Stevens, M. Jung, J. Denzler, and N. Carvalhais, “Deep learning and process understanding for data-driven Earth system science,” 
+Nature
+, vol. 566, pp. 195–204, 2019, doi: 10.1038/s41586-019-0912-1.

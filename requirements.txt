@@ -1,0 +1,8 @@
+geopandas
+shapely
+osmnx
+earthengine-api
+geemap
+rasterio
+xarray
+jupyter
