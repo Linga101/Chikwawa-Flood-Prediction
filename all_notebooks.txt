@@ -1,0 +1,1325 @@
+
+
+--- notebooks\04B_satellite_rainfall_and_radar_fixed.ipynb ---
+
+# 04B. Satellite Rainfall & Radar (Fixed Download)
+
+In order to teach a model *when* and *where* a flood occurs, we need Historical Rainfall (the trigger) and Sentinel-1 SAR (the actual flood footprint observed from space).
+This notebook downloads historical extreme events (e.g. Cyclone Idai 2019) to act as your training data for `Rainfall_mm` and `Flood_Target`.
+
+import ee
+import geopandas as gpd
+import requests
+import json
+import os
+from pathlib import Path
+
+try:
+    ee.Initialize()
+except Exception as e:
+    print('Please run notebook 02 to set up authentication first.')
+    raise e
+
+# Load Chikwawa Boundary using absolute paths
+notebook_dir  = Path(os.path.abspath(''))
+project_root  = notebook_dir.parent
+boundary_path = project_root / 'data' / 'raw' / 'chikwawa_boundary.geojson'
+
+chikwawa_gdf = gpd.read_file(boundary_path)
+geojson = json.loads(chikwawa_gdf.to_json())
+aoi = ee.FeatureCollection(geojson).geometry()
+
+# 1. CHIRPS Daily Precipitation Data (Rainfall_mm)
+start_date = '2019-03-01'
+end_date = '2019-03-31'
+
+chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
+            .filterDate(start_date, end_date) \
+            .select('precipitation')
+
+total_rainfall = chirps.sum().clip(aoi)
+
+# 2. Flood Mapping using Sentinel-1 Radar
+collection = ee.ImageCollection('COPERNICUS/S1_GRD') \
+    .filterBounds(aoi) \
+    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+    .select('VV')
+
+before_flood = collection.filterDate('2019-01-01', '2019-02-28').min().clip(aoi)
+during_flood = collection.filterDate('2019-03-10', '2019-03-20').min().clip(aoi)
+
+diff = before_flood.subtract(during_flood)
+water_threshold = diff.gt(3)
+
+# Export Rainfall and Flood Mask as TIFFs using Direct Request
+def download_ee_image(image, aoi, scale, filename):
+    out_path = project_root / 'data' / 'raw' / filename
+    print(f'Generating URL for {filename} (scale={scale}m)...')
+    url = image.getDownloadURL({
+        'region': aoi,
+        'scale': scale,
+        'format': 'GEO_TIFF',
+        'crs': 'EPSG:4326'
+    })
+    print('Downloading...')
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(out_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+    if out_path.exists() and out_path.stat().st_size > 0:
+        print(f'SUCCESS! Saved to {filename}\n')
+    else:
+        print(f'ERROR: Failed to save {filename}\n')
+
+# Run downloads
+download_ee_image(total_rainfall, aoi, scale=1000, filename='chirps_rainfall_mar2019.tif')
+download_ee_image(water_threshold, aoi, scale=90, filename='sentinel_flood_mask_2019.tif')
+print('All Remote Sensing files downloaded successfully!')
+
+
+
+--- notebooks\04C_multi_event_collection.ipynb ---
+
+# 04C. Multi-Event Satellite Data Collection (Full Feature Set)
+
+Downloads all satellite layers needed to build the final ML dataset:
+
+| Layer | Source | Type | Downloaded Once or Per-Event? |
+|---|---|---|---|
+| Elevation_m + Slope_deg | NASA SRTM | Topography | **Once** (already done in 03B) |
+| Rainfall_mm | CHIRPS Daily | Rainfall | **Per Event** |
+| Flood_Target | Sentinel-1 SAR | Flood Mask | **Per Event** |
+| NDVI | MODIS MOD13A2 | Vegetation | **Per Event** |
+| LandCover | ESA WorldCover 2021 | Land Use | **Once** (static) |
+import ee
+import geopandas as gpd
+import requests
+import json
+import os
+from pathlib import Path
+
+try:
+    ee.Initialize()
+    print('Earth Engine initialized.')
+except Exception as e:
+    print('Please run notebook 02 first.')
+    raise e
+
+notebook_dir  = Path(os.path.abspath(''))
+project_root  = notebook_dir.parent
+boundary_path = project_root / 'data' / 'raw' / 'chikwawa_boundary.geojson'
+output_dir    = project_root / 'data' / 'raw' / 'events'
+static_dir    = project_root / 'data' / 'raw' / 'static'
+static_dir.mkdir(parents=True, exist_ok=True)
+
+chikwawa_gdf = gpd.read_file(boundary_path)
+geojson = json.loads(chikwawa_gdf.to_json())
+aoi = ee.FeatureCollection(geojson).geometry()
+print(f'AOI loaded. Static layers -> {static_dir}')
+
+# All events with full feature set
+EVENTS = [
+    {
+        'name':       'cyclone_bansi_jan2015',
+        'label':      'Cyclone Bansi (Jan 2015) - MAJOR',
+        'is_flood':   True,
+        'rain_start': '2015-01-01', 'rain_end':   '2015-01-31',
+        'sar_before': ('2014-11-01', '2014-12-31'),
+        'sar_during': ('2015-01-13', '2015-01-28'),
+        'ndvi_date':  ('2015-01-01', '2015-02-15'),
+    },
+    {
+        'name':       'floods_feb2017',
+        'label':      'Moderate Floods (Feb 2017) - MINOR',
+        'is_flood':   True,
+        'rain_start': '2017-01-15', 'rain_end':   '2017-02-28',
+        'sar_before': ('2016-11-01', '2016-12-31'),
+        'sar_during': ('2017-02-05', '2017-02-25'),
+        'ndvi_date':  ('2017-01-15', '2017-03-01'),
+    },
+    {
+        'name':       'cyclone_idai_mar2019',
+        'label':      'Cyclone Idai (Mar 2019) - MAJOR',
+        'is_flood':   True,
+        'rain_start': '2019-03-01', 'rain_end':   '2019-03-31',
+        'sar_before': ('2019-01-01', '2019-02-28'),
+        'sar_during': ('2019-03-10', '2019-03-25'),
+        'ndvi_date':  ('2019-02-15', '2019-04-01'),
+    },
+    {
+        'name':       'cyclone_ana_jan2022',
+        'label':      'Cyclone Ana (Jan 2022) - MAJOR',
+        'is_flood':   True,
+        'rain_start': '2022-01-01', 'rain_end':   '2022-01-31',
+        'sar_before': ('2021-11-01', '2021-12-31'),
+        'sar_during': ('2022-01-20', '2022-02-10'),
+        'ndvi_date':  ('2022-01-01', '2022-02-15'),
+    },
+    {
+        'name':       'cyclone_freddy_mar2023',
+        'label':      'Cyclone Freddy (Mar 2023) - MAJOR',
+        'is_flood':   True,
+        'rain_start': '2023-02-01', 'rain_end':   '2023-03-31',
+        'sar_before': ('2022-12-01', '2023-01-31'),
+        'sar_during': ('2023-03-05', '2023-03-20'),
+        'ndvi_date':  ('2023-02-01', '2023-04-01'),
+    },
+    {
+        'name':       'normal_season_2016',
+        'label':      'Normal Season (Jan-Feb 2016)',
+        'is_flood':   False,
+        'rain_start': '2016-01-01', 'rain_end':   '2016-02-29',
+        'sar_before': ('2015-10-01', '2015-12-31'),
+        'sar_during': ('2016-01-01', '2016-02-29'),
+        'ndvi_date':  ('2016-01-01', '2016-03-01'),
+    },
+    {
+        'name':       'normal_season_2018',
+        'label':      'Normal Season (Jan-Feb 2018)',
+        'is_flood':   False,
+        'rain_start': '2018-01-01', 'rain_end':   '2018-02-28',
+        'sar_before': ('2017-10-01', '2017-12-31'),
+        'sar_during': ('2018-01-01', '2018-02-28'),
+        'ndvi_date':  ('2018-01-01', '2018-03-01'),
+    },
+    {
+        'name':       'normal_season_2020',
+        'label':      'Normal Season (Jan-Feb 2020)',
+        'is_flood':   False,
+        'rain_start': '2020-01-01', 'rain_end':   '2020-02-29',
+        'sar_before': ('2019-10-01', '2019-12-31'),
+        'sar_during': ('2020-01-01', '2020-02-29'),
+        'ndvi_date':  ('2020-01-01', '2020-03-01'),
+    },
+    {
+        'name':       'normal_season_2021',
+        'label':      'Normal Season (Jan-Feb 2021)',
+        'is_flood':   False,
+        'rain_start': '2021-01-01', 'rain_end':   '2021-02-28',
+        'sar_before': ('2020-10-01', '2020-12-31'),
+        'sar_during': ('2021-01-01', '2021-02-28'),
+        'ndvi_date':  ('2021-01-01', '2021-03-01'),
+    },
+]
+print(f'Defined {len(EVENTS)} events.')
+
+# Helper: Download any EE image directly to disk
+def download_ee_image(image, aoi, scale, out_path):
+    url = image.getDownloadURL({
+        'region': aoi,
+        'scale':  scale,
+        'format': 'GEO_TIFF',
+        'crs':    'EPSG:4326'
+    })
+    response = requests.get(url, stream=True)
+    response.raise_for_status()
+    with open(out_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+    return Path(out_path).stat().st_size / (1024 * 1024)
+
+# STEP A: Download static layers (only need to be downloaded ONCE)
+
+# --- ESA WorldCover 2021 (LandCover) ---
+lc_path = static_dir / 'landcover_esa2021.tif'
+if not lc_path.exists():
+    print('Downloading ESA WorldCover 2021 (LandCover)...')
+    worldcover = ee.ImageCollection('ESA/WorldCover/v200') \
+                   .first() \
+                   .select('Map') \
+                   .clip(aoi)
+    mb = download_ee_image(worldcover, aoi, scale=90, out_path=lc_path)
+    print(f'  LandCover saved! ({mb:.2f} MB)')
+else:
+    print('LandCover already exists, skipping.')
+
+print('Static layers ready.')
+
+# STEP B: Per-event downloads (Rainfall + Flood Mask + NDVI)
+results = []
+total   = len(EVENTS)
+
+for i, event in enumerate(EVENTS, 1):
+    name  = event['name']
+    label = event['label']
+    print(f'\n[{i}/{total}] {label}')
+
+    event_dir = output_dir / name
+    event_dir.mkdir(exist_ok=True)
+    status = {'event': label, 'flood': event['is_flood']}
+
+    # 1. Rainfall (CHIRPS)
+    rain_path = event_dir / 'rainfall.tif'
+    if not rain_path.exists():
+        print(f'  [1/3] CHIRPS Rainfall...')
+        try:
+            chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
+                       .filterDate(event['rain_start'], event['rain_end']) \
+                       .select('precipitation')
+            mb = download_ee_image(chirps.sum().clip(aoi), aoi, scale=1000, out_path=rain_path)
+            print(f'       OK ({mb:.2f} MB)')
+            status['rainfall'] = 'OK'
+        except Exception as ex:
+            print(f'       ERROR: {ex}')
+            status['rainfall'] = 'FAILED'
+    else:
+        print(f'  [1/3] Rainfall already exists, skipping.')
+        status['rainfall'] = 'EXISTS'
+
+    # 2. Flood Mask (Sentinel-1 SAR)
+    flood_path = event_dir / 'flood_mask.tif'
+    if not flood_path.exists():
+        print(f'  [2/3] Sentinel-1 SAR Flood Mask...')
+        try:
+            col = ee.ImageCollection('COPERNICUS/S1_GRD') \
+                    .filterBounds(aoi) \
+                    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV')) \
+                    .select('VV')
+            before    = col.filterDate(event['sar_before'][0], event['sar_before'][1]).min().clip(aoi)
+            during    = col.filterDate(event['sar_during'][0], event['sar_during'][1]).min().clip(aoi)
+            threshold = 3 if event['is_flood'] else 999
+            mask      = before.subtract(during).gt(threshold)
+            mb = download_ee_image(mask, aoi, scale=90, out_path=flood_path)
+            print(f'       OK ({mb:.2f} MB)')
+            status['flood_mask'] = 'OK'
+        except Exception as ex:
+            print(f'       ERROR: {ex}')
+            status['flood_mask'] = 'FAILED'
+    else:
+        print(f'  [2/3] Flood mask already exists, skipping.')
+        status['flood_mask'] = 'EXISTS'
+
+    # 3. NDVI (MODIS 16-day composite at 500m)
+    ndvi_path = event_dir / 'ndvi.tif'
+    if not ndvi_path.exists():
+        print(f'  [3/3] MODIS NDVI ({event["ndvi_date"][0]} to {event["ndvi_date"][1]})...')
+        try:
+            modis = ee.ImageCollection('MODIS/061/MOD13A2') \
+                      .filterDate(event['ndvi_date'][0], event['ndvi_date'][1]) \
+                      .select('NDVI') \
+                      .mean() \
+                      .multiply(0.0001)  # Scale factor: raw NDVI is x10000
+            ndvi  = modis.clip(aoi)
+            mb = download_ee_image(ndvi, aoi, scale=500, out_path=ndvi_path)
+            print(f'       OK ({mb:.2f} MB)')
+            status['ndvi'] = 'OK'
+        except Exception as ex:
+            print(f'       ERROR: {ex}')
+            status['ndvi'] = 'FAILED'
+    else:
+        print(f'  [3/3] NDVI already exists, skipping.')
+        status['ndvi'] = 'EXISTS'
+
+    results.append(status)
+
+# Final Summary
+print('\n' + '='*60)
+print('DOWNLOAD COMPLETE - SUMMARY')
+print('='*60)
+for r in results:
+    tag  = 'FLOOD ' if r['flood'] else 'NORMAL'
+    rain = '✓' if r.get('rainfall')  in ('OK','EXISTS') else '✗'
+    mask = '✓' if r.get('flood_mask') in ('OK','EXISTS') else '✗'
+    ndvi = '✓' if r.get('ndvi')       in ('OK','EXISTS') else '✗'
+    print(f'  [{tag}] {r["event"]}')
+    print(f'          Rain:{rain}  FloodMask:{mask}  NDVI:{ndvi}')
+print('='*60)
+print('Ready for Notebook 05 - Feature Extraction!')
+
+
+
+--- notebooks\05_feature_extraction_to_csv.ipynb ---
+
+# 05. Feature Extraction → ML-Ready CSV
+
+This notebook converts all downloaded `.tif` files into a clean, flat CSV table ready for Machine Learning.
+
+## Output Schema
+| Point_ID | Latitude | Longitude | Elevation_m | Slope_deg | NDVI | LandCover | Rainfall_mm | Dist_River_m | Flood |
+|---|---|---|---|---|---|---|---|---|---|
+
+## How it Works
+1. Sample **2000 random GPS points** across the Chikwawa boundary
+2. For each of the **9 events**, drill each point through every `.tif` layer and record the pixel values
+3. Calculate **distance to nearest river** using OSM river data
+4. Stack all events → one big CSV with `9 events × 2000 points = ~18,000 rows`
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+import rasterio
+import osmnx as ox
+from shapely.geometry import Point
+from pathlib import Path
+import os
+import warnings
+warnings.filterwarnings('ignore')
+
+# Paths
+notebook_dir  = Path(os.path.abspath(''))
+project_root  = notebook_dir.parent
+raw_dir       = project_root / 'data' / 'raw'
+events_dir    = raw_dir / 'events'
+static_dir    = raw_dir / 'static'
+processed_dir = project_root / 'data' / 'processed'
+processed_dir.mkdir(parents=True, exist_ok=True)
+
+print('Libraries loaded. Paths configured.')
+print(f'  Events    : {events_dir}')
+print(f'  Static    : {static_dir}')
+print(f'  Output CSV: {processed_dir}')
+
+# STEP 1: Load Chikwawa boundary and sample 2000 random points inside it
+RANDOM_SEED   = 42
+NUM_POINTS    = 2000
+
+boundary_path = raw_dir / 'chikwawa_boundary.geojson'
+chikwawa_gdf  = gpd.read_file(boundary_path).to_crs('EPSG:4326')
+district_geom = chikwawa_gdf.unary_union
+
+print(f'Sampling {NUM_POINTS} random points inside Chikwawa...')
+np.random.seed(RANDOM_SEED)
+minx, miny, maxx, maxy = district_geom.bounds
+sample_points = []
+while len(sample_points) < NUM_POINTS:
+    lon = np.random.uniform(minx, maxx)
+    lat = np.random.uniform(miny, maxy)
+    pt  = Point(lon, lat)
+    if district_geom.contains(pt):
+        sample_points.append({'Longitude': lon, 'Latitude': lat})
+
+points_gdf = gpd.GeoDataFrame(
+    sample_points,
+    geometry=[Point(p['Longitude'], p['Latitude']) for p in sample_points],
+    crs='EPSG:4326'
+)
+print(f'Done! {len(points_gdf)} points sampled.')
+
+# STEP 2: Extract static features (Elevation, Slope, LandCover)
+# These do not change between events, so we extract them once.
+
+def sample_raster_at_points(tif_path, points_gdf, band=1):
+    """Sample pixel values from a GeoTIFF at each point location."""
+    coords = [(row.geometry.x, row.geometry.y) for _, row in points_gdf.iterrows()]
+    with rasterio.open(tif_path) as src:
+        values = [x[0] if x[0] is not None else np.nan
+                  for x in src.sample(coords, indexes=band)]
+    return values
+
+# Topography (Elevation Band 1, Slope Band 2)
+topo_path = raw_dir / 'chikwawa_topography.tif'
+print('Extracting Elevation and Slope...')
+points_gdf['Elevation_m'] = sample_raster_at_points(topo_path, points_gdf, band=1)
+points_gdf['Slope_deg']   = sample_raster_at_points(topo_path, points_gdf, band=2)
+print(f'  Elevation range: {points_gdf["Elevation_m"].min():.1f} - {points_gdf["Elevation_m"].max():.1f} m')
+
+# LandCover
+lc_path = static_dir / 'landcover_esa2021.tif'
+if lc_path.exists():
+    print('Extracting LandCover...')
+    points_gdf['LandCover'] = sample_raster_at_points(lc_path, points_gdf, band=1)
+    print(f'  Unique LandCover classes: {sorted(points_gdf["LandCover"].dropna().unique().astype(int).tolist())}')
+else:
+    print('LandCover TIF not found - run notebook 04C first!')
+    points_gdf['LandCover'] = np.nan
+
+print('Static features extracted.')
+
+# STEP 3: Calculate Distance to Nearest River (Dist_River_m)
+# Uses geopandas sjoin_nearest - vectorized with spatial index (fast!)
+print('Fetching river/waterway network from OSM using boundary polygon...')
+
+try:
+    rivers_gdf = ox.features_from_polygon(district_geom, tags={'waterway': True})
+    print(f'  Found {len(rivers_gdf)} waterway features.')
+
+    # Keep only line/multiline geometries (rivers are lines, not points)
+    rivers_gdf = rivers_gdf[rivers_gdf.geometry.geom_type.isin(
+        ['LineString', 'MultiLineString']
+    )].copy()
+    print(f'  {len(rivers_gdf)} line features after filtering.')
+
+    # Project both to UTM Zone 36S (metres) for accurate distance
+    rivers_proj = rivers_gdf.to_crs('EPSG:32736')[['geometry']].reset_index(drop=True)
+    points_proj  = points_gdf.to_crs('EPSG:32736')[['geometry']].copy()
+
+    # sjoin_nearest is fully vectorized - uses spatial index, runs in seconds
+    print('  Running vectorized nearest-river join (should take <30 seconds)...')
+    joined = gpd.sjoin_nearest(
+        points_proj,
+        rivers_proj,
+        how='left',
+        distance_col='Dist_River_m'
+    )
+    # sjoin_nearest may duplicate index if multiple matches; take first
+    joined = joined[~joined.index.duplicated(keep='first')]
+    points_gdf['Dist_River_m'] = joined['Dist_River_m'].values
+
+    print(f'  Distance range: {points_gdf["Dist_River_m"].min():.0f} - '
+          f'{points_gdf["Dist_River_m"].max():.0f} m')
+    print('  SUCCESS!')
+
+except Exception as ex:
+    print(f'OSM fetch failed: {ex}')
+    print('Using Shire River approximation (known coordinates)...')
+    from shapely.geometry import LineString
+    import pyproj
+    from shapely.ops import transform
+
+    # Shire River main channel approximate centreline coordinates
+    shire_coords = [
+        (34.55, -15.80), (34.60, -15.90), (34.65, -16.00),
+        (34.70, -16.10), (34.75, -16.20), (34.80, -16.30),
+        (34.85, -16.40), (34.90, -16.50), (34.95, -16.60),
+    ]
+    shire_line = LineString(shire_coords)
+
+    # Project to UTM 36S for metre-based distance
+    proj = pyproj.Transformer.from_crs('EPSG:4326', 'EPSG:32736', always_xy=True).transform
+    shire_proj = transform(proj, shire_line)
+    points_proj = points_gdf.to_crs('EPSG:32736')
+    points_gdf['Dist_River_m'] = points_proj.geometry.distance(shire_proj)
+    print(f'  Approximation done. Range: {points_gdf["Dist_River_m"].min():.0f} '
+          f'- {points_gdf["Dist_River_m"].max():.0f} m')
+
+print('Dist_River_m column ready.')
+
+# STEP 4: Define all 9 events and extract per-event features (Rainfall, NDVI, Flood)
+EVENTS = [
+    {'name': 'cyclone_bansi_jan2015',  'label': 'Cyclone Bansi 2015',  'is_flood': True},
+    {'name': 'floods_feb2017',         'label': 'Minor Floods 2017',   'is_flood': True},
+    {'name': 'cyclone_idai_mar2019',   'label': 'Cyclone Idai 2019',   'is_flood': True},
+    {'name': 'cyclone_ana_jan2022',    'label': 'Cyclone Ana 2022',    'is_flood': True},
+    {'name': 'cyclone_freddy_mar2023', 'label': 'Cyclone Freddy 2023', 'is_flood': True},
+    {'name': 'normal_season_2016',     'label': 'Normal Season 2016',  'is_flood': False},
+    {'name': 'normal_season_2018',     'label': 'Normal Season 2018',  'is_flood': False},
+    {'name': 'normal_season_2020',     'label': 'Normal Season 2020',  'is_flood': False},
+    {'name': 'normal_season_2021',     'label': 'Normal Season 2021',  'is_flood': False},
+]
+
+all_rows = []
+point_id_counter = 1
+
+for event in EVENTS:
+    name      = event['name']
+    event_dir = events_dir / name
+    print(f'\nProcessing event: {event["label"]}')
+
+    # Copy static columns into this event's snapshot
+    event_df = points_gdf[['Latitude', 'Longitude', 'Elevation_m',
+                            'Slope_deg', 'LandCover', 'Dist_River_m']].copy()
+    event_df['Event'] = event['label']
+
+    # Rainfall
+    rain_path = event_dir / 'rainfall.tif'
+    if rain_path.exists():
+        event_df['Rainfall_mm'] = sample_raster_at_points(rain_path, points_gdf, band=1)
+        print(f'  Rainfall extracted. Mean: {event_df["Rainfall_mm"].mean():.1f} mm')
+    else:
+        print(f'  WARNING: rainfall.tif not found for {name}')
+        event_df['Rainfall_mm'] = np.nan
+
+    # NDVI
+    ndvi_path = event_dir / 'ndvi.tif'
+    if ndvi_path.exists():
+        event_df['NDVI'] = sample_raster_at_points(ndvi_path, points_gdf, band=1)
+        print(f'  NDVI extracted. Mean: {event_df["NDVI"].mean():.3f}')
+    else:
+        print(f'  WARNING: ndvi.tif not found for {name}. Run updated 04C first!')
+        event_df['NDVI'] = np.nan
+
+    # Flood Mask (0 or 1)
+    flood_path = event_dir / 'flood_mask.tif'
+    if flood_path.exists():
+        event_df['Flood'] = sample_raster_at_points(flood_path, points_gdf, band=1)
+        flood_pct = (event_df['Flood'] == 1).mean() * 100
+        print(f'  Flood mask extracted. {flood_pct:.1f}% of points are flooded.')
+    else:
+        print(f'  WARNING: flood_mask.tif not found for {name}')
+        event_df['Flood'] = int(event['is_flood'])  # fallback: whole district
+
+    # Assign Point_IDs
+    event_df.insert(0, 'Point_ID',
+        [f'P{str(i).zfill(5)}' for i in range(point_id_counter, point_id_counter + len(event_df))])
+    point_id_counter += len(event_df)
+
+    all_rows.append(event_df)
+
+print(f'\nAll events processed.')
+
+# STEP 5: Combine all events into one CSV and save
+final_df = pd.concat(all_rows, ignore_index=True)
+
+# Reorder columns to match target schema
+final_df = final_df[['Point_ID', 'Latitude', 'Longitude', 'Elevation_m',
+                      'Slope_deg', 'NDVI', 'LandCover', 'Rainfall_mm',
+                      'Dist_River_m', 'Flood', 'Event']]
+
+# Cast types
+final_df['Flood']     = final_df['Flood'].astype('Int64')  
+final_df['LandCover'] = final_df['LandCover'].astype('Int64')
+
+# Save to processed/
+output_csv = processed_dir / 'chikwawa_flood_dataset.csv'
+final_df.to_csv(output_csv, index=False)
+
+print('='*55)
+print('DATASET SAVED!')
+print('='*55)
+print(f'  File     : {output_csv}')
+print(f'  Rows     : {len(final_df):,}')
+print(f'  Columns  : {list(final_df.columns)}')
+print(f'  Flooded  : {(final_df["Flood"]==1).sum():,} rows ({(final_df["Flood"]==1).mean()*100:.1f}%)')
+print(f'  No Flood : {(final_df["Flood"]==0).sum():,} rows')
+print()
+print('Preview:')
+final_df.head(10)
+
+
+
+--- notebooks\06_combined_eda_and_preprocessing.ipynb ---
+
+## `Preprocessing`👍👍
+### Data Loading and Setup
+Imports required libraries, sets up plotting styles, defines file paths, loads the Chikwawa flood dataset, and prints dataset dimensions and flood rate.
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import seaborn as sns
+from pathlib import Path
+import os
+import warnings
+warnings.filterwarnings('ignore')
+
+# Plotting style
+plt.rcParams.update({'figure.dpi': 120, 'font.size': 11})
+sns.set_style('whitegrid')
+
+# Paths
+notebook_dir  = Path(os.path.abspath(''))
+project_root  = notebook_dir.parent
+processed_dir = project_root / 'data' / 'processed'
+figures_dir   = project_root / 'figures'
+figures_dir.mkdir(exist_ok=True)
+
+df = pd.read_csv(processed_dir / 'chikwawa_flood_dataset.csv')
+
+
+print(f'Dataset loaded: {df.shape[0]:,} rows x {df.shape[1]} columns')
+print(f'Flooded rows  : {df["Flood"].sum():,} ({df["Flood"].mean()*100:.2f}%)')
+df.head()
+
+### Missing Value Check
+Checking the dataset for any missing values across all columns.
+df.isnull().sum()
+### Data Types Info
+Displaying the structure and data types of the DataFrame.
+df.info()
+### Statistical Summary
+Generating descriptive statistics of the dataset's numerical columns.
+df.describe()
+## EDA
+### Correlation Heatmap
+Visualizing the correlation between different features to identify strong relationships or multicollinearity.
+plt.figure(figsize=(10, 8))
+sns.heatmap(df.drop(columns=['Point_ID', 'Event']).corr(), annot=True, cmap='coolwarm')
+plt.tight_layout()
+plt.show()
+### Outlier Detection
+Plotting boxplots for environmental features (Rainfall, Distance to River, Elevation, Slope) to detect outliers. We keep all data as they are real-world measurements.
+# check otliers in {Rainfall_mm, Dist_River_m,Elevation_m, Slope_deg }
+plt.figure(figsize=(12, 8))
+for i, col in enumerate(['Rainfall_mm', 'Dist_River_m', 'Elevation_m', 'Slope_deg']):
+    plt.subplot(2, 2, i+1)
+    sns.boxplot(y=df[col])
+    plt.title(f'Boxplot of {col}')
+plt.tight_layout()
+plt.show()
+# But we have concluded not to remove them cause this data is all real. 
+### Distribution Analysis
+Visualizing overall class distribution (Flood vs No Flood) and flood rate across different seasonal events.
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+# Plot 1: Overall class distribution
+counts = df['Flood'].value_counts()
+colors = ['#2ecc71', '#e74c3c']
+axes[0].bar(['No Flood (0)', 'Flood (1)'], counts.values, color=colors, edgecolor='white', linewidth=1.5)
+for i, v in enumerate(counts.values):
+    axes[0].text(i, v + 100, f'{v:,}\n({v/len(df)*100:.1f}%)', ha='center', fontweight='bold')
+axes[0].set_title('Overall Class Distribution', fontsize=13, fontweight='bold')
+axes[0].set_ylabel('Number of Points')
+axes[0].set_ylim(0, max(counts.values) * 1.15)
+
+# Plot 2: Flood rate by event
+event_stats = df.groupby('Event')['Flood'].mean().sort_values(ascending=False) * 100
+event_colors = ['#e74c3c' if x > 0 else '#2ecc71' for x in event_stats.values]
+axes[1].barh(event_stats.index, event_stats.values, color=event_colors, edgecolor='white')
+axes[1].set_xlabel('Flood Rate (%)')
+axes[1].set_title('Flood Rate by Event', fontsize=13, fontweight='bold')
+for i, v in enumerate(event_stats.values):
+    if v > 0:
+        axes[1].text(v + 0.05, i, f'{v:.2f}%', va='center', fontsize=9)
+
+plt.tight_layout()
+plt.savefig(figures_dir / 'eda_01_class_distribution.png', bbox_inches='tight')
+plt.show()
+print('Key insight: Cyclone Ana 2022 produced the most flooded points (3.75% flood rate)')
+print('Cyclone Freddy 2023 and all Normal Seasons show 0 flooded points')
+
+### Feature Distribution (Flood vs No Flood)
+Comparing the density distribution of numerical features for flooded versus non-flooded points.
+features = ['Elevation_m', 'Slope_deg', 'NDVI', 'Rainfall_mm', 'Dist_River_m']
+fig, axes = plt.subplots(2, 3, figsize=(16, 9))
+axes = axes.flatten()
+
+flood_df    = df[df['Flood'] == 1]
+no_flood_df = df[df['Flood'] == 0]
+
+for i, feat in enumerate(features):
+    axes[i].hist(no_flood_df[feat].dropna(), bins=40, alpha=0.6, color='#2ecc71',
+                 label='No Flood', density=True)
+    axes[i].hist(flood_df[feat].dropna(),    bins=40, alpha=0.8, color='#e74c3c',
+                 label='Flood',    density=True)
+    axes[i].set_title(feat, fontweight='bold')
+    axes[i].set_xlabel('Value')
+    axes[i].set_ylabel('Density')
+    axes[i].legend(fontsize=9)
+
+# Remove unused subplot
+fig.delaxes(axes[5])
+plt.suptitle('Feature Distributions: Flood vs No Flood', fontsize=14, fontweight='bold', y=1.01)
+plt.tight_layout()
+plt.savefig(figures_dir / 'eda_02_feature_distributions.png', bbox_inches='tight')
+plt.show()
+
+### Land Cover Mapping
+Mapping numeric land cover codes to their respective descriptive category names.
+
+LANDCOVER_LABELS = {
+    10: 'Forest', 20: 'Shrubland', 30: 'Grassland',
+    40: 'Cropland', 50: 'Built-Up', 60: 'Bare Land',
+    80: 'Water Body', 90: 'Wetland'
+}
+df['LandCover_Name'] = df['LandCover'].map(LANDCOVER_LABELS)
+
+### Land Cover Analysis
+Analyzing the frequency of different land cover classes and measuring their respective flood rates.
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+
+# Plot 1: Land cover distribution across dataset
+lc_counts = df['LandCover_Name'].value_counts()
+axes[0].bar(lc_counts.index, lc_counts.values,
+            color=plt.cm.Set2(np.linspace(0, 1, len(lc_counts))),
+            edgecolor='white')
+axes[0].set_title('Land Cover Distribution (All Points)', fontweight='bold')
+axes[0].set_xlabel('Land Cover Class')
+axes[0].set_ylabel('Number of Points')
+axes[0].tick_params(axis='x', rotation=30)
+
+# Plot 2: Flood rate by land cover class
+lc_flood_rate = df.groupby('LandCover_Name')['Flood'].mean() * 100
+lc_flood_rate = lc_flood_rate.sort_values(ascending=False)
+bar_colors = ['#e74c3c' if v > 0.5 else '#f39c12' if v > 0 else '#2ecc71'
+              for v in lc_flood_rate.values]
+axes[1].bar(lc_flood_rate.index, lc_flood_rate.values, color=bar_colors, edgecolor='white')
+axes[1].set_title('Flood Rate by Land Cover Class', fontweight='bold')
+axes[1].set_xlabel('Land Cover Class')
+axes[1].set_ylabel('Flood Rate (%)')
+axes[1].tick_params(axis='x', rotation=30)
+for i, v in enumerate(lc_flood_rate.values):
+    if v > 0:
+        axes[1].text(i, v + 0.02, f'{v:.2f}%', ha='center', fontsize=9)
+
+plt.tight_layout()
+plt.savefig(figures_dir / 'eda_03_landcover_analysis.png', bbox_inches='tight')
+plt.show()
+
+### Geospatial Visualization
+Plotting points geographically (Latitude/Longitude) to visualize the spatial distribution of flood occurrences.
+fig, ax = plt.subplots(figsize=(10, 10))
+
+# All non-flood points as light grey
+ax.scatter(no_flood_df['Longitude'], no_flood_df['Latitude'],
+           c='#bdc3c7', s=4, alpha=0.3, label='No Flood')
+
+# Flood points coloured by event
+flood_events = flood_df['Event'].unique()
+palette = ['#e74c3c', '#e67e22', '#9b59b6', '#3498db', '#1abc9c']
+for j, event in enumerate(flood_events):
+    sub = flood_df[flood_df['Event'] == event]
+    ax.scatter(sub['Longitude'], sub['Latitude'],
+               c=palette[j % len(palette)], s=60, edgecolors='black',
+               linewidths=0.5, label=event, zorder=5)
+
+ax.set_xlabel('Longitude', fontsize=12)
+ax.set_ylabel('Latitude', fontsize=12)
+ax.set_title('Geographic Distribution of Flood Points\nChikwawa District, Malawi',
+             fontsize=14, fontweight='bold')
+ax.legend(loc='upper right', fontsize=9, framealpha=0.9)
+ax.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.savefig(figures_dir / 'eda_05_geographic_flood_map.png', bbox_inches='tight')
+plt.show()
+
+## Feature Engineering
+### Topographic Index Calculations
+Replacing 0 slope values with 1 to avoid division by zero errors, then calculating Topographic Wetness Index (TWI) and Elevation to River ratio.
+# Replacing 0s with 1s to avoid arithmetic errors (zero division exception)
+df['Slope_deg'] = df['Slope_deg'].replace(0.0, 1.0)
+
+df["topographic_wet_index"] = df["Rainfall_mm"] / df["Slope_deg"]
+df['elevation_to_river']=df['Elevation_m']/df['Dist_River_m']
+df
+
+### Categorical Encoding (Land Cover)
+Converting land cover names into categorical numerical codes.
+# Convert the column to 'category' type first, then extract codes
+df['LandCover_Name'] = df['LandCover_Name'].astype('category')
+df['LC_codes'] = df['LandCover_Name'].cat.codes
+
+df.head()
+
+
+### Isolating Flooded Points
+Creating a subset dataframe containing only the flooded data points for threshold analysis.
+flood = df[df['Flood'] == 1] 
+print(flood.to_string())
+### Permeability Scoring
+Assigning a permeability score based on the land cover type (high, moderate, or low permeability).
+permeab = {
+    "high": [10],  # high permeability
+    "moderate": [20, 30, 40],  # moderate permeability
+    "low": [50, 60, 70, 80, 90]  # low permeability
+}
+
+landcover_to_permeab = {lc: score for score, lcs in permeab.items() for lc in lcs}
+df["permeability_score"] = df["LandCover"].map(landcover_to_permeab)
+print(df.to_string())
+### Categorical Encoding (Permeability)
+Converting permeability qualitative scores into numerical categories.
+# Convert the column to 'category' type first, then extract codes
+df['permeability_score'] = df['permeability_score'].astype('category')
+df['PS_codes'] = df['permeability_score'].cat.codes
+
+df.head()
+
+
+### Threshold Analysis: Distance to River
+Analyzing flooded points to establish danger, middle, and safe zone thresholds based on distance to the nearest river.
+
+col = flood[["Dist_River_m","Flood"]]
+Dist_df = pd.DataFrame(col)
+
+# --- THE PROCESS ---
+
+# 2. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['Dist_River_m']
+
+# 3. Calculate thresholds based on the 'Flooded' distribution
+# We use the 33rd and 66th percentiles to create three equal-sized groups of flooded points
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+print(f"Danger Zone Limit (based on flooded data): {danger_threshold:.2f}m")
+print(f"Middle Zone Limit (based on flooded data): {middle_threshold:.2f}m")
+
+# 4. Visualization
+plt.figure(figsize=(10, 6))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', label=f'Danger Threshold ({danger_threshold:.1f}m)')
+plt.axvline(middle_threshold, color='orange', linestyle='--', label=f'Middle Threshold ({middle_threshold:.1f}m)')
+
+# Aesthetic labels
+plt.title("Threshold Selection using ONLY Flooded Data Points", fontsize=14)
+plt.xlabel("Distance to River (m)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# Annotate zones
+plt.text(danger_threshold/2, plt.gca().get_ylim()[1]*0.5, "DANGER", color='red', weight='bold', ha='center')
+plt.text((danger_threshold + middle_threshold)/2, plt.gca().get_ylim()[1]*0.5, "MIDDLE", color='orange', weight='bold', ha='center')
+plt.text(middle_threshold + 100, plt.gca().get_ylim()[1]*0.5, "SAFE", color='green', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+### Threshold Analysis: Rainfall
+Determining lower and upper threshold values for rainfall based on the 25th and 75th percentiles of flooded points.
+
+# Assuming 'flood' is your original DataFrame
+col = flood[["Rainfall_mm", "Flood"]]
+Rain_df = pd.DataFrame(col)
+
+# 1. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['Rainfall_mm']
+
+# 2. Calculate thresholds based on the 'Flooded' distribution
+# Using 25th and 75th percentiles
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+# 3. Print the results with mm units
+print(f"Lower Threshold (based on flooded data): {danger_threshold:.2f}mm")
+print(f"Upper Threshold (based on flooded data): {middle_threshold:.2f}mm")
+
+# 4. Visualization
+plt.figure(figsize=(10, 6))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points (Rainfall)')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', 
+            label=f'Lower Threshold ({danger_threshold:.1f}mm)')
+plt.axvline(middle_threshold, color='orange', linestyle='--', 
+            label=f'Upper Threshold ({middle_threshold:.1f}mm)')
+
+# Aesthetic labels
+plt.title("Rainfall Threshold Selection using ONLY Flooded Data Points", fontsize=14)
+plt.xlabel("Rainfall (mm)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# 5. Annotate zones with adjusted offsets for Rainfall
+y_top = plt.gca().get_ylim()[1]
+
+# Position labels in the centers of the three segments
+plt.text(danger_threshold/2, y_top*0.5, "LOW RAIN", 
+         color='green', weight='bold', ha='center')
+
+plt.text((danger_threshold + middle_threshold)/2, y_top*0.5, "MID RAIN", 
+         color='orange', weight='bold', ha='center')
+
+# Offset for High Rainfall zone set to +20mm
+plt.text(middle_threshold + 20, y_top*0.5, "HIGH RAIN", 
+         color='red', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+### Threshold Analysis: Elevation
+Identifying elevation thresholds representing high (danger) and medium risk zones for flooding.
+
+col = flood[["Elevation_m","Flood"]]
+elevation_df = pd.DataFrame(col)
+
+# --- THE PROCESS ---
+
+# 2. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['Elevation_m']
+
+# 3. Calculate thresholds based on the 'Flooded' distribution
+# We use the 33rd and 66th percentiles to create three equal-sized groups of flooded points
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+print(f"Danger Zone Limit (based on flooded data): {danger_threshold:.2f}m")
+print(f"Middle Zone Limit (based on flooded data): {middle_threshold:.2f}m")
+
+# 4. Visualization
+plt.figure(figsize=(10, 6))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', label=f'Danger Threshold ({danger_threshold:.1f}m)')
+plt.axvline(middle_threshold, color='orange', linestyle='--', label=f'Middle Threshold ({middle_threshold:.1f}m)')
+
+# Aesthetic labels
+plt.title("Threshold Selection using ONLY Flooded Data Points", fontsize=14)
+plt.xlabel("Elevation_(m)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# Annotate zones
+plt.text(danger_threshold/2, plt.gca().get_ylim()[1]*0.5, "DANGER", color='red', weight='bold', ha='center')
+plt.text((danger_threshold + middle_threshold)/2, plt.gca().get_ylim()[1]*0.5, "MIDDLE", color='orange', weight='bold', ha='center')
+plt.text(middle_threshold + 100, plt.gca().get_ylim()[1]*0.5, "SAFE", color='green', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+### Threshold Analysis: Slope
+Establishing critical slope degree boundaries associated with flood events.
+
+# Assuming 'flood' is your original DataFrame
+col = flood[["Slope_deg", "Flood"]]
+slope_df = pd.DataFrame(col)
+
+# 1. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['Slope_deg']
+
+# 2. Calculate thresholds based on the 'Flooded' distribution
+# Using the 25th and 75th percentiles as requested
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+# 3. Print the results with degree units
+print(f"Danger Zone Limit (based on flooded data): {danger_threshold:.2f}°")
+print(f"Middle Zone Limit (based on flooded data): {middle_threshold:.2f}°")
+
+# 4. Visualization
+plt.figure(figsize=(10, 6))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points (Slope)')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', 
+            label=f'Danger Threshold ({danger_threshold:.1f}°)')
+plt.axvline(middle_threshold, color='orange', linestyle='--', 
+            label=f'Middle Threshold ({middle_threshold:.1f}°)')
+
+# Aesthetic labels
+plt.title("Slope Threshold Selection using ONLY Flooded Data Points", fontsize=14)
+plt.xlabel("Slope (Degrees)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# 5. Annotate zones with adjusted offsets for degrees
+y_top = plt.gca().get_ylim()[1]
+plt.text(danger_threshold/2, y_top*0.5, "DANGER", 
+         color='red', weight='bold', ha='center')
+plt.text((danger_threshold + middle_threshold)/2, y_top*0.5, "MIDDLE", 
+         color='orange', weight='bold', ha='center')
+
+# Offset for SAFE zone set to 1 degree instead of 100 meters
+plt.text(middle_threshold + 1, y_top*0.5, "SAFE", 
+         color='green', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+### Threshold Analysis: Elevation to River Ratio
+Calculating and visualizing thresholds for the engineered Elevation-to-River ratio feature.
+col = flood[["elevation_to_river","Flood"]]
+elevation_to_river_df = pd.DataFrame(col)
+
+# --- THE PROCESS ---
+
+# 2. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['elevation_to_river']
+
+# 3. Calculate thresholds based on the 'Flooded' distribution
+# We use the 33rd and 66th percentiles to create three equal-sized groups of flooded points
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+print(f"Danger Zone Limit (based on flooded data): {danger_threshold:.2f}m")
+print(f"Middle Zone Limit (based on flooded data): {middle_threshold:.2f}m")
+
+# 4. Visualization
+plt.figure(figsize=(20, 12))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', label=f'Danger Threshold ({danger_threshold:.1f}m)')
+plt.axvline(middle_threshold, color='orange', linestyle='--', label=f'Middle Threshold ({middle_threshold:.1f}m)')
+
+# Aesthetic labels
+plt.title("Threshold Selection using ONLY Flooded Data Points", fontsize=14)
+plt.xlabel("elevation_to_river(m)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# Annotate zones
+plt.text(danger_threshold/2, plt.gca().get_ylim()[1]*0.5, "DANGER", color='red', weight='bold', ha='center')
+plt.text((danger_threshold + middle_threshold)/2, plt.gca().get_ylim()[1]*0.5, "MIDDLE", color='orange', weight='bold', ha='center')
+plt.text(middle_threshold + 100, plt.gca().get_ylim()[1]*0.5, "SAFE", color='green', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+### Threshold Analysis: Topographic Wetness Index (TWI)
+Evaluating the TWI thresholds directly correlated with historical flooding.
+
+col = flood[["topographic_wet_index", "Flood"]]
+topographic_wet_index_df = pd.DataFrame(col)
+
+# 2. Filter the dataset to ONLY include flooded points
+flooded_only = df[df['Flood'] == 1]['topographic_wet_index']
+
+# 3. Calculate thresholds based on the 'Flooded' distribution
+# Using 25th and 75th percentiles
+danger_threshold = flooded_only.quantile(0.25)
+middle_threshold = flooded_only.quantile(0.75)
+
+# 4. Print the results (TWI is a ratio, so it has no units)
+print(f"Lower Threshold (based on flooded data): {danger_threshold:.2f}")
+print(f"Upper Threshold (based on flooded data): {middle_threshold:.2f}")
+
+# 5. Visualization
+plt.figure(figsize=(10, 6))
+
+# Plot only the flooded data distribution
+sns.histplot(flooded_only, kde=True, color='blue', label='Flooded Data Points (TWI)')
+
+# Draw the threshold lines
+plt.axvline(danger_threshold, color='red', linestyle='--', 
+            label=f'Lower Threshold ({danger_threshold:.1f})')
+plt.axvline(middle_threshold, color='orange', linestyle='--', 
+            label=f'Upper Threshold ({middle_threshold:.1f})')
+
+# Aesthetic labels
+plt.title("Topographic Wetness Index Threshold Selection (Flooded Only)", fontsize=14)
+plt.xlabel("Topographic Wetness Index (Elevation / Slope)")
+plt.ylabel("Frequency")
+plt.legend()
+
+# 6. Annotate zones with adjusted offsets
+y_top = plt.gca().get_ylim()[1]
+
+# Zone 1: Lower TWI
+plt.text(danger_threshold/2, y_top*0.5, "Danger", 
+         color='green', weight='bold', ha='center')
+
+# Zone 2: Middle TWI
+plt.text((danger_threshold + middle_threshold)/2, y_top*0.5, "Moderate", 
+         color='orange', weight='bold', ha='center')
+
+# Zone 3: High TWI (Usually where water accumulates most)
+# Small offset relative to the scale of the TWI values
+offset = (flooded_only.max() - middle_threshold) * 0.05
+plt.text(middle_threshold + offset, y_top*0.5, "Safe", 
+         color='red', weight='bold', ha='left')
+
+plt.tight_layout()
+plt.show()
+## Class imbalance solution
+### Data Splitting Setup
+Checking for SMOTE availability, defining features and target variables, and analyzing current class imbalance.
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+try:
+    from imblearn.over_sampling import SMOTE
+    SMOTE_AVAILABLE = True
+except ImportError:
+    SMOTE_AVAILABLE = False
+    print('imblearn not installed. Run: pip install imbalanced-learn')
+
+# Feature columns for ML
+FEATURE_COLS = ['Elevation_m', 'Slope_deg', 'NDVI',
+                'Rainfall_mm', 'Dist_River_m',
+                'topographic_wet_index','elevation_to_river',
+                'LC_codes','PS_codes' ]
+TARGET_COL   = 'Flood'
+
+X = df[FEATURE_COLS].copy()
+y = df[TARGET_COL].copy()
+
+print(f'Features : {FEATURE_COLS}')
+print(f'Target   : {TARGET_COL}')
+print(f'X shape  : {X.shape}')
+print(f'Class balance before SMOTE:')
+print(f'  Flood=0: {(y==0).sum():,}  Flood=1: {(y==1).sum():,}')
+
+### Handling Class Imbalance with SMOTE
+Splitting data into train/test sets, then applying SMOTE to the training set to synthetically upsample the minority flood class.
+# Train/Test split BEFORE SMOTE (never apply SMOTE to test data!)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+print(f'Train set: {X_train.shape[0]:,} rows  |  Test set: {X_test.shape[0]:,} rows')
+print(f'Train flood rate: {y_train.mean()*100:.2f}%')
+print(f'Test  flood rate: {y_test.mean()*100:.2f}%')
+
+# Apply SMOTE ONLY to training set
+if SMOTE_AVAILABLE:
+    smote = SMOTE(sampling_strategy=0.80, random_state=42)  # 20% minority ratio
+    X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+    print(f'\nAfter SMOTE:')
+    print(f'  Train size : {len(X_train_res):,} rows')
+    print(f'  Flood=0    : {(y_train_res==0).sum():,}')
+    print(f'  Flood=1    : {(y_train_res==1).sum():,}')
+    print(f'  Flood rate : {y_train_res.mean()*100:.1f}%')
+else:
+    X_train_res, y_train_res = X_train, y_train
+    print('Skipping SMOTE — using class_weight in model instead.')
+
+### Feature Scaling
+Applying StandardScaler to normalize feature variables, ensuring mean=0 and standard deviation=1, and applying the fitted scaler to the test set.
+# Feature Scaling (StandardScaler: mean=0, std=1)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train_res)
+X_test_scaled  = scaler.transform(X_test)  # use SAME scaler fitted on train
+
+print('Scaling complete.')
+print('Sample scaled means (should be ~0):')
+for i, col in enumerate(FEATURE_COLS):
+    print(f'  {col:<15}: mean={X_train_scaled[:,i].mean():.4f}, std={X_train_scaled[:,i].std():.4f}')
+
+### Saving Processed Artifacts
+Exporting the final scaled and balanced training/testing datasets to CSVs, and pickling the StandardScaler for future model inference.
+import pickle
+
+# Save all ML-ready artifacts
+train_df = pd.DataFrame(X_train_scaled, columns=FEATURE_COLS)
+train_df[TARGET_COL] = y_train_res.values
+train_df.to_csv(processed_dir / 'train_set.csv', index=False)
+
+test_df = pd.DataFrame(X_test_scaled, columns=FEATURE_COLS)
+test_df[TARGET_COL] = y_test.values
+test_df.to_csv(processed_dir / 'test_set.csv', index=False)
+
+# Save the scaler for use during model inference
+with open(processed_dir / 'scaler.pkl', 'wb') as f:
+    pickle.dump(scaler, f)
+
+print('='*50)
+print('ALL PREPROCESSING COMPLETE!')
+print('='*50)
+print(f'  train_set.csv    : {len(train_df):,} rows (SMOTE balanced)')
+print(f'  test_set.csv     : {len(test_df):,} rows (real distribution)')
+print(f'  scaler.pkl       : StandardScaler saved')
+print(f'  Figures saved to : {figures_dir}')
+print()
+print('Ready for Notebook 07 — Model Training!')
+
+train_df
+count = (train_df["Flood"] == 1).sum()
+count
+
+
+--- notebooks\07_model_training.ipynb ---
+
+# 07 - Model Training (Random Forest, XGBoost, LightGBM)
+In this notebook, we load the preprocessed and scaled train/test datasets to build three powerful ensemble models for flood prediction. We will evaluate and compare their performance.
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
+import os
+import pickle
+import warnings
+warnings.filterwarnings('ignore')
+
+# Check if xgboost and lightgbm are available.
+try:
+    from xgboost import XGBClassifier
+    from lightgbm import LGBMClassifier
+except ImportError:
+    print("Please run: pip install xgboost lightgbm")
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report, roc_curve
+
+# Paths
+notebook_dir = Path(os.path.abspath(''))
+project_root = notebook_dir.parent
+processed_dir = project_root / 'data' / 'processed'
+models_dir = project_root / 'models'
+models_dir.mkdir(exist_ok=True)
+figures_dir = project_root / 'figures'
+
+plt.rcParams.update({'figure.dpi': 120, 'font.size': 11})
+sns.set_style('whitegrid')
+## 1. Load Data
+The data was already scaled (`StandardScaler`) and oversampled (`SMOTE`) during step 06. The test set remains untouched by SMOTE to ensure a realistic physical evaluation base.
+print("Loading datasets...")
+train_df = pd.read_csv(processed_dir / 'train_set.csv')
+test_df = pd.read_csv(processed_dir / 'test_set.csv')
+
+X_train = train_df.drop(columns=['Flood'])
+y_train = train_df['Flood']
+
+X_test = test_df.drop(columns=['Flood'])
+y_test = test_df['Flood']
+
+print(f"X_train shape: {X_train.shape}, y_train shape: {y_train.shape}")
+print(f"X_test shape:  {X_test.shape}, y_test shape:  {y_test.shape}")
+## 2. Evaluation Wrapper Function
+We create a reusable function to streamline the evaluation of all our models and standardized outputs.
+def evaluate_model(model, X_test, y_test, model_name):
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
+    
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred, zero_division=0)
+    recall = recall_score(y_test, y_pred, zero_division=0)
+    f1 = f1_score(y_test, y_pred, zero_division=0)
+    auc = roc_auc_score(y_test, y_prob)
+    
+    print(f"--- {model_name} Performance ---")
+    print(f"Accuracy : {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall   : {recall:.4f}")
+    print(f"F1 Score : {f1:.4f}")
+    print(f"ROC AUC  : {auc:.4f}\n")
+    print("Classification Report:")
+    print(classification_report(y_test, y_pred, zero_division=0))
+    
+    # Confusion Matrix Plot
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(5, 4))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'{model_name} - Confusion Matrix')
+    plt.ylabel('Actual')
+    plt.xlabel('Predicted')
+    plt.tight_layout()
+    plt.savefig(figures_dir / f'cm_{model_name.replace(" ", "_").lower()}.png')
+    plt.show()
+    
+    return {'accuracy': accuracy, 'precision': precision, 'recall': recall, 'f1': f1, 'auc': auc, 'y_prob': y_prob}
+## 3. Train Models
+print("Training Random Forest...")
+rf_model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+rf_model.fit(X_train, y_train)
+
+rf_metrics = evaluate_model(rf_model, X_test, y_test, "Random Forest")
+print("Training XGBoost...")
+xgb_model = XGBClassifier(n_estimators=100, learning_rate=0.1, random_state=42, eval_metric='logloss')
+xgb_model.fit(X_train, y_train)
+
+xgb_metrics = evaluate_model(xgb_model, X_test, y_test, "XGBoost")
+print("Training LightGBM...")
+lgb_model = LGBMClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
+lgb_model.fit(X_train, y_train)
+
+lgb_metrics = evaluate_model(lgb_model, X_test, y_test, "LightGBM")
+## 4. Compare Models and Evaluate ROC
+# Compare all models gracefully
+models_comparison = pd.DataFrame({
+    'Random Forest': rf_metrics,
+    'XGBoost': xgb_metrics,
+    'LightGBM': lgb_metrics
+}).T.drop(columns=['y_prob'])
+
+print("Model Comparison Summary:")
+display(models_comparison.sort_values(by='f1', ascending=False))
+
+# Plot ROC Curves
+plt.figure(figsize=(8, 6))
+
+fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_metrics['y_prob'])
+fpr_xgb, tpr_xgb, _ = roc_curve(y_test, xgb_metrics['y_prob'])
+fpr_lgb, tpr_lgb, _ = roc_curve(y_test, lgb_metrics['y_prob'])
+
+plt.plot(fpr_rf, tpr_rf, label=f"Random Forest (AUC = {rf_metrics['auc']:.4f})")
+plt.plot(fpr_xgb, tpr_xgb, label=f"XGBoost (AUC = {xgb_metrics['auc']:.4f})")
+plt.plot(fpr_lgb, tpr_lgb, label=f"LightGBM (AUC = {lgb_metrics['auc']:.4f})")
+plt.plot([0, 1], [0, 1], 'k--', label='Random Guess')
+
+plt.title('ROC Curves Comparison')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc='lower right')
+plt.tight_layout()
+plt.savefig(figures_dir / 'roc_curves_comparison.png')
+plt.show()
+## 5. Persistence
+Save the trained models locally into the `models/` directory so they can be loaded by evaluating scripts or the deployment dashboard.
+with open(models_dir / 'rf_model.pkl', 'wb') as f:
+    pickle.dump(rf_model, f)
+
+with open(models_dir / 'xgb_model.pkl', 'wb') as f:
+    pickle.dump(xgb_model, f)
+
+with open(models_dir / 'lgb_model.pkl', 'wb') as f:
+    pickle.dump(lgb_model, f)
+
+print(f"Models successfully saved to: {models_dir}")

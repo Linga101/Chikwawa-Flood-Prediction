@@ -6,3 +6,9 @@ geemap
 rasterio
 xarray
 jupyter
+scikit-learn
+imbalanced-learn
+matplotlib
+seaborn
+xgboost
+lightgbm
