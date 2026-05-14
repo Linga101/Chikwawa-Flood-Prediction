@@ -12,3 +12,4 @@ matplotlib
 seaborn
 xgboost
 lightgbm
+pyproj
