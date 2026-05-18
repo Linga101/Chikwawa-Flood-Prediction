@@ -20,4 +20,4 @@ def test_apply_path_a_logic():
     
     # Verify Rainfall_mm was replaced by the lag sum
     assert result_df.iloc[0]['Rainfall_mm'] == 50.0
-    assert len(result_df.columns) == 10 # 9 features + index
+    assert len(result_df.columns) == 9 # 9 features (index doesn't count towards length)

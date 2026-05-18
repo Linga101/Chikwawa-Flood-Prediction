@@ -1,5 +1,6 @@
 import ee
 from app.core.ingestion.gee_client import initialize_gee
+from datetime import datetime, timedelta
 
 def fetch_soil_moisture():
     """
@@ -10,9 +11,12 @@ def fetch_soil_moisture():
     
     roi = ee.Geometry.Rectangle([34.5, -16.5, 35.0, -15.8])
     
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=3)
+    
     # SMAP L3 Soil Moisture (Daily)
     dataset = ee.ImageCollection("NASA/SMAP/SPL3SMP_E/005") \
-        .filter(ee.Filter.date(ee.Date(ee.Date.now().advance(-3, 'day')), ee.Date.now())) \
+        .filter(ee.Filter.date(int(start_date.timestamp() * 1000), int(end_date.timestamp() * 1000))) \
         .select('soil_moisture_am')
     
     if dataset.size().getInfo() == 0:

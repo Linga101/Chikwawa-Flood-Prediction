@@ -1,0 +1,35 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Keys and Secrets
+backend/geospatial/gee_key.json
+*.pem
+*.key
+*.cer
+*.crt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo

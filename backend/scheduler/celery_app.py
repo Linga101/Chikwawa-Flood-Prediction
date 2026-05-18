@@ -5,7 +5,12 @@ from app.config import settings
 celery_app = Celery(
     "chikwawa_tasks",
     broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL
+    backend=settings.REDIS_URL,
+    include=[
+        "scheduler.tasks.task_ingest",
+        "scheduler.tasks.task_predict",
+        "scheduler.tasks.task_cleanup"
+    ]
 )
 
 celery_app.conf.update(
@@ -16,8 +21,8 @@ celery_app.conf.update(
     enable_utc=True,
 )
 
-# Automatic task discovery
-celery_app.autodiscover_tasks(["scheduler"])
+# Automatic task discovery removed in favor of explicit include
+# celery_app.autodiscover_tasks(["scheduler"])
 
 # Schedule the 6-hour ingestion and prediction cycle
 celery_app.conf.beat_schedule = {

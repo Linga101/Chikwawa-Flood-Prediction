@@ -1,5 +1,6 @@
 import ee
 from app.core.ingestion.gee_client import initialize_gee
+from datetime import datetime, timedelta
 
 def fetch_ndvi():
     """
@@ -10,11 +11,14 @@ def fetch_ndvi():
     
     roi = ee.Geometry.Rectangle([34.5, -16.5, 35.0, -15.8])
     
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=30)
+    
     # Sentinel-2 Surface Reflectance
     collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
         .filterBounds(roi) \
         .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)) \
-        .filterDate(ee.Date.now().advance(-30, 'day'), ee.Date.now())
+        .filterDate(int(start_date.timestamp() * 1000), int(end_date.timestamp() * 1000))
     
     if collection.size().getInfo() == 0:
         return 0.5 # Fallback

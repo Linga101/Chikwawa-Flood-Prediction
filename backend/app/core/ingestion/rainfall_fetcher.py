@@ -17,7 +17,7 @@ def fetch_latest_rainfall():
     start_date = end_date - timedelta(hours=6)
     
     dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_V06') \
-        .filterDate(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')) \
+        .filterDate(int(start_date.timestamp() * 1000), int(end_date.timestamp() * 1000)) \
         .select('precipitationCal')
     
     # Get the mean or sum over the region
