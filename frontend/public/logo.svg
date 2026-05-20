@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="techGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    
+    <linearGradient id="alertGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+
+    <linearGradient id="riverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+
+    <linearGradient id="mountainGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <linearGradient id="contourGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#2563eb" stop-opacity="0" />
+    </linearGradient>
+
+    <radialGradient id="bgRadial" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </radialGradient>
+
+    <!-- Filters for glowing effect -->
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="glow-subtle" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Clip Path for the droplet contents -->
+    <clipPath id="dropletClip">
+      <path d="M 250 60 C 250 60, 390 210, 390 320 C 390 397.3, 327.3 460, 250 460 C 172.7 460, 110 397.3, 110 320 C 110 210, 250 60, 250 60 Z" />
+    </clipPath>
+  </defs>
+
+  <!-- Outer Ring (Radar / GIS representation) -->
+  <circle cx="250" cy="250" r="230" fill="none" stroke="url(#techGlow)" stroke-width="1.5" stroke-dasharray="4,8" opacity="0.3" />
+  <circle cx="250" cy="250" r="215" fill="none" stroke="url(#techGlow)" stroke-width="2" stroke-dasharray="16,12" opacity="0.6" />
+  <circle cx="250" cy="250" r="200" fill="none" stroke="url(#techGlow)" stroke-width="1" opacity="0.2" />
+
+  <!-- Outer Compass ticks -->
+  <g stroke="url(#techGlow)" stroke-width="2" opacity="0.5">
+    <line x1="250" y1="12" x2="250" y2="24" />
+    <line x1="250" y1="476" x2="250" y2="488" />
+    <line x1="12" y1="250" x2="24" y2="250" />
+    <line x1="476" y1="250" x2="488" y2="250" />
+  </g>
+
+  <!-- Droplet Background and Border -->
+  <!-- Subtle back-glow for droplet -->
+  <path d="M 250 60 C 250 60, 390 210, 390 320 C 390 397.3, 327.3 460, 250 460 C 172.7 460, 110 397.3, 110 320 C 110 210, 250 60, 250 60 Z" 
+        fill="url(#techGlow)" opacity="0.15" filter="url(#glow)" />
+
+  <!-- Main Droplet Body (Clipped Content) -->
+  <g clip-path="url(#dropletClip)">
+    <!-- Droplet Base Dark Fill -->
+    <path d="M 250 60 C 250 60, 390 210, 390 320 C 390 397.3, 327.3 460, 250 460 C 172.7 460, 110 397.3, 110 320 C 110 210, 250 60, 250 60 Z" 
+          fill="url(#bgRadial)" />
+
+    <!-- Spatial Grid Mesh (GIS style) -->
+    <g stroke="url(#techGlow)" stroke-width="0.5" opacity="0.15">
+      <!-- Vertical Lines -->
+      <line x1="140" y1="0" x2="140" y2="500" />
+      <line x1="180" y1="0" x2="180" y2="500" />
+      <line x1="220" y1="0" x2="220" y2="500" />
+      <line x1="260" y1="0" x2="260" y2="500" />
+      <line x1="300" y1="0" x2="300" y2="500" />
+      <line x1="340" y1="0" x2="340" y2="500" />
+      <line x1="380" y1="0" x2="380" y2="500" />
+      <!-- Horizontal Lines -->
+      <line x1="0" y1="140" x2="500" y2="140" />
+      <line x1="0" y1="180" x2="500" y2="180" />
+      <line x1="0" y1="220" x2="500" y2="220" />
+      <line x1="0" y1="260" x2="500" y2="260" />
+      <line x1="0" y1="300" x2="500" y2="300" />
+      <line x1="0" y1="340" x2="500" y2="340" />
+      <line x1="0" y1="380" x2="500" y2="380" />
+      <line x1="0" y1="420" x2="500" y2="420" />
+    </g>
+
+    <!-- Topographic Contour Lines & Mountain Shading -->
+    <!-- Contour Level 1 (Back mountain) -->
+    <path d="M 80 340 Q 180 180 280 300 T 420 310 L 420 500 L 80 500 Z" fill="url(#contourGrad)" stroke="#0ea5e9" stroke-width="1" opacity="0.3" />
+    
+    <!-- Contour Level 2 (Middle mountain) -->
+    <path d="M 80 370 Q 150 240 250 330 T 420 350 L 420 500 L 80 500 Z" fill="url(#contourGrad)" stroke="#0ea5e9" stroke-width="1.5" opacity="0.5" />
+
+    <!-- Contour Level 3 (Foreground mountain / Valley bank) -->
+    <path d="M 80 410 Q 130 320 220 370 T 420 390 L 420 500 L 80 500 Z" fill="url(#mountainGrad)" stroke="#38bdf8" stroke-width="2" />
+
+    <!-- Shire River Winding / Flooding (Flowing through the valley) -->
+    <path d="M 280 200 C 280 200, 310 260, 270 310 C 220 370, 150 340, 130 420 C 120 460, 160 480, 200 480 C 280 480, 350 430, 380 360 C 390 330, 380 300, 380 300"
+          fill="none" stroke="url(#riverGrad)" stroke-width="24" stroke-linecap="round" filter="url(#glow)" opacity="0.85" />
+    <!-- Core of the river (bright highlight inside) -->
+    <path d="M 280 200 C 280 200, 310 260, 270 310 C 220 370, 150 340, 130 420 C 120 460, 160 480, 200 480 C 280 480, 350 430, 380 360 C 390 330, 380 300, 380 300"
+          fill="none" stroke="#e0f2fe" stroke-width="6" stroke-linecap="round" opacity="0.9" />
+
+    <!-- Dynamic Wave / Flood Surge (Representing flood crests) -->
+    <path d="M 120 380 Q 180 340 240 390 T 360 370" fill="none" stroke="url(#alertGlow)" stroke-width="4" stroke-linecap="round" stroke-dasharray="10,15" filter="url(#glow-subtle)" />
+    <path d="M 100 410 Q 170 370 240 420 T 380 400" fill="none" stroke="url(#alertGlow)" stroke-width="3" stroke-linecap="round" stroke-dasharray="6,12" opacity="0.8" />
+
+    <!-- AI Prediction Network Nodes (overlay on the map) -->
+    <!-- Connection lines -->
+    <g stroke="#38bdf8" stroke-width="1.5" opacity="0.6">
+      <line x1="170" y1="210" x2="230" y2="170" />
+      <line x1="230" y1="170" x2="310" y2="220" stroke="url(#alertGlow)" stroke-width="2" />
+      <line x1="310" y1="220" x2="340" y2="290" stroke="url(#alertGlow)" stroke-width="2" />
+      <line x1="230" y1="170" x2="220" y2="260" />
+      <line x1="220" y1="260" x2="160" y2="310" />
+      <line x1="220" y1="260" x2="290" y2="320" />
+    </g>
+
+    <!-- Normal Data Nodes (Blue/Cyan) -->
+    <circle cx="170" cy="210" r="5" fill="#0ea5e9" stroke="#fff" stroke-width="1" />
+    <circle cx="230" cy="170" r="7" fill="#0ea5e9" stroke="#fff" stroke-width="1.5" filter="url(#glow-subtle)" />
+    <circle cx="220" cy="260" r="6" fill="#38bdf8" stroke="#fff" stroke-width="1" />
+    <circle cx="160" cy="310" r="5" fill="#38bdf8" stroke="#fff" stroke-width="1" />
+    <circle cx="290" cy="320" r="5" fill="#0ea5e9" stroke="#fff" stroke-width="1" />
+
+    <!-- Alert / Risk Node (Amber/Red blinking indicator) -->
+    <!-- Back glowing ring for the alert node -->
+    <circle cx="310" cy="220" r="14" fill="url(#alertGlow)" opacity="0.4" filter="url(#glow)" />
+    <!-- Alert Node center -->
+    <circle cx="310" cy="220" r="7" fill="#dc2626" stroke="#fff" stroke-width="2" filter="url(#glow-subtle)" />
+    
+    <!-- Another Warning Node down-river -->
+    <circle cx="340" cy="290" r="10" fill="url(#alertGlow)" opacity="0.3" filter="url(#glow)" />
+    <circle cx="340" cy="290" r="5" fill="#f59e0b" stroke="#fff" stroke-width="1.5" />
+  </g>
+
+  <!-- Droplet Border/Frame (Overlay on top of clipped contents to make a sharp edge) -->
+  <path d="M 250 60 C 250 60, 390 210, 390 320 C 390 397.3, 327.3 460, 250 460 C 172.7 460, 110 397.3, 110 320 C 110 210, 250 60, 250 60 Z" 
+        fill="none" stroke="url(#techGlow)" stroke-width="6" stroke-linejoin="round" filter="url(#glow-subtle)" />
+  <path d="M 250 60 C 250 60, 390 210, 390 320 C 390 397.3, 327.3 460, 250 460 C 172.7 460, 110 397.3, 110 320 C 110 210, 250 60, 250 60 Z" 
+        fill="none" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" opacity="0.9" />
+
+  <!-- A small water droplet reflection shine at top-left to make it look 3D and premium -->
+  <path d="M 160 250 C 150 280, 150 310, 165 330 C 160 315, 158 290, 168 260 C 170 255, 165 250, 160 250 Z" fill="#fff" opacity="0.55" filter="url(#glow-subtle)" />
+</svg>

@@ -1,22 +1,27 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
 from app.dependencies import get_db
-from app.db.crud.crud_sensors import get_latest_readings_by_source
-from app.schemas.sensor_schema import SensorReadingResponse
+from app.core.analytics import get_rainfall_trends, get_river_level_status
 
 router = APIRouter()
 
-@router.get("/rainfall-trends", response_model=List[SensorReadingResponse])
-async def read_rainfall_trends(db: Session = Depends(get_db)):
+@router.get("/rainfall-trends")
+async def read_rainfall_trends(
+    window: int = Query(default=7, ge=1, le=30, description="Number of days to look back (1-30)"),
+    db: Session = Depends(get_db)
+):
     """
-    Returns the past 7 days of rainfall readings for time-series charts.
+    Returns daily aggregated rainfall data for the chart widget.
+    Supports ?window=7 (default) or ?window=30 for the 30-day view.
     """
-    return get_latest_readings_by_source(db, "GPM")
+    return get_rainfall_trends(db, window_days=window)
 
-@router.get("/river-levels", response_model=List[SensorReadingResponse])
+
+@router.get("/river-levels")
 async def read_river_levels(db: Session = Depends(get_db)):
     """
-    Returns the past 7 days of Shire River gauge readings.
+    Returns the latest Shire River level at Chiromo gauge vs. danger thresholds.
+    Powers the 'Water Levels' widget in the Readdy-style dashboard.
     """
-    return get_latest_readings_by_source(db, "DAHITI")
+    return get_river_level_status(db)
