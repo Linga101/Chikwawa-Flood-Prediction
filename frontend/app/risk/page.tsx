@@ -23,12 +23,14 @@ interface Assessment {
   };
 }
 
-const FACTOR_LABELS: Record<string, { label: string; icon: string; desc: string }> = {
-  rainfall_intensity:  { label: 'Rainfall Intensity',  icon: '🌧️', desc: 'GPM satellite-derived precipitation accumulation (7-day)' },
-  soil_saturation:     { label: 'Soil Saturation',     icon: '🌱', desc: 'SMAP volumetric water content — indicates how much rain the soil can absorb' },
-  river_level:         { label: 'Shire River Level',   icon: '🌊', desc: 'Current Shire River height at Chiromo gauge vs danger threshold (6.0m)' },
-  infrastructure_risk: { label: 'Infrastructure Risk', icon: '🏘️', desc: 'Land cover and settlement density in the grid cell' },
-  elevation_slope:     { label: 'Elevation / Slope',   icon: '⛰️', desc: 'Terrain elevation and slope — lower areas are higher risk' },
+import { CloudRain, Sprout, Waves, Home, Mountain } from 'lucide-react';
+
+const FACTOR_LABELS: Record<string, { label: string; icon: React.ReactNode; desc: string }> = {
+  rainfall_intensity:  { label: 'Rainfall Intensity',  icon: <CloudRain size={16} />, desc: 'GPM satellite-derived precipitation accumulation (7-day)' },
+  soil_saturation:     { label: 'Soil Saturation',     icon: <Sprout size={16} />, desc: 'SMAP volumetric water content — indicates how much rain the soil can absorb' },
+  river_level:         { label: 'Shire River Level',   icon: <Waves size={16} />, desc: 'Current Shire River height at Chiromo gauge vs danger threshold (6.0m)' },
+  infrastructure_risk: { label: 'Infrastructure Risk', icon: <Home size={16} />, desc: 'Land cover and settlement density in the grid cell' },
+  elevation_slope:     { label: 'Elevation / Slope',   icon: <Mountain size={16} />, desc: 'Terrain elevation and slope — lower areas are higher risk' },
 };
 
 function scoreColor(score: number) {

@@ -35,6 +35,7 @@
 
 /* --- Dark Theme --- */
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg-primary:       #0f172a;
   --bg-secondary:     #1e293b;
   --bg-card:          #1e293b;
@@ -47,6 +48,11 @@
   --text-sidebar-act: #f1f5f9;
   --shadow-card:      0 1px 3px rgba(0,0,0,0.4);
   --shadow-hover:     0 4px 12px rgba(0,0,0,0.5);
+}
+
+[data-theme="dark"] select, [data-theme="dark"] option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 /* ============================================================
@@ -84,6 +90,10 @@ img { max-width: 100%; display: block; }
   background: var(--bg-primary);
 }
 
+.mobile-overlay { display: none; }
+.mobile-header { display: none; }
+.sidebar-wrapper { display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; }
+
 /* ============================================================
    SIDEBAR
    ============================================================ */
@@ -92,9 +102,8 @@ img { max-width: 100%; display: block; }
   display: flex;
   flex-direction: column;
   padding: 20px 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  width: 240px;
+  height: 100%;
   overflow-y: auto;
 }
 
@@ -332,6 +341,51 @@ img { max-width: 100%; display: block; }
    ============================================================ */
 @media (max-width: 1024px) {
   .app-shell { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  
+  .sidebar-wrapper {
+    position: fixed;
+    top: 0; 
+    left: -260px; 
+    bottom: 0; 
+    width: 240px;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+  .sidebar-wrapper.open { left: 0; }
+  
+  .mobile-overlay {
+    display: block;
+    position: fixed; 
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 990;
+  }
+  
+  .mobile-header {
+    display: flex; 
+    align-items: center; 
+    gap: 16px;
+    margin-bottom: 20px; 
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-menu-btn {
+    background: none; 
+    border: none; 
+    color: var(--text-primary);
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+  }
+  .mobile-logo { 
+    font-weight: 700; 
+    font-size: 16px; 
+    color: var(--text-primary); 
+  }
+  
   .dashboard-grid { grid-template-columns: 1fr; }
+  
+  /* Make topbar responsive */
+  .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .topbar-actions { width: 100%; justify-content: flex-start; }
 }

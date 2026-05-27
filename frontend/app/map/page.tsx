@@ -3,19 +3,18 @@
 import dynamic from 'next/dynamic';
 import AppShell from '@/components/layout/AppShell';
 import { useState } from 'react';
+import { Map as MapIcon, CloudRain, Waves, Car, Radio } from 'lucide-react';
 
 // Leaflet must be dynamically imported (no SSR) as it uses browser APIs
 const FloodMap = dynamic(() => import('@/components/map/FloodMap'), { ssr: false, loading: () => (
   <div style={{ height: 520, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: 12 }}>
-    🗺️ Loading map...
+    <MapIcon size={24} style={{ marginRight: 8, opacity: 0.5 }} /> Loading map...
   </div>
 )});
 
 const LAYERS = [
-  { id: 'rainfall',   label: '🌧️ Rainfall Data'      },
-  { id: 'rivers',     label: '🌊 River Network'        },
-  { id: 'evacuation', label: '🚗 Evacuation Routes'    },
-  { id: 'sensors',    label: '📡 Sensor Network'       },
+  { id: 'rainfall',   label: 'Rainfall Data',     icon: <CloudRain size={16} /> },
+  { id: 'rivers',     label: 'River Network',     icon: <Waves size={16} /> },
 ];
 
 export default function MapPage() {
@@ -69,7 +68,9 @@ export default function MapPage() {
                       transition: 'left 0.2s',
                     }} />
                   </div>
-                  <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{layer.label}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {layer.icon} {layer.label}
+                  </span>
                 </label>
               ))}
             </div>

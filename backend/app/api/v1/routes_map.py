@@ -10,7 +10,7 @@ async def get_map_geojson():
     Returns the GeoJSON of Chikwawa boundaries. 
     In a real scenario, this would be enriched with live risk data.
     """
-    geojson_path = "geospatial/chikwawa_boundaries.geojson"
+    geojson_path = os.path.join(os.path.dirname(__file__), "../../../../data/raw/chikwawa_boundary.geojson")
     if not os.path.exists(geojson_path):
         return {"type": "FeatureCollection", "features": []}
         

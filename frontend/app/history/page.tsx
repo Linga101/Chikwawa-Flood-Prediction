@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import RainfallChart from '@/components/charts/RainfallChart';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
-} from 'recharts';
+import { CloudRain, Waves, History as HistoryIcon, Plus, X } from 'lucide-react';
 
 interface RiverStatus {
   river_name: string;
@@ -17,25 +15,35 @@ interface RiverStatus {
   last_updated: string | null;
 }
 
+interface HistoricalEvent {
+  id: number;
+  year: string;
+  event_name: string;
+  impact_level: string;
+  people_affected: number;
+  economic_loss: string;
+}
+
 const statusColors: Record<string, string> = {
   SAFE:    'var(--risk-low)',
   WARNING: 'var(--risk-med)',
   DANGER:  'var(--risk-high)',
 };
 
-// Demo historical events from Chikwawa
-const historicalEvents = [
-  { year: '2019', event: 'Cyclone Idai',         impact: 'High',   affected: 84_000, economic: '$2.4M' },
-  { year: '2015', event: 'Malawi Floods',         impact: 'High',   affected: 230_000,economic: '$7.1M' },
-  { year: '2022', event: 'Cyclone Ana',           impact: 'Medium', affected: 46_000, economic: '$1.2M' },
-  { year: '2023', event: 'Cyclone Freddy',        impact: 'High',   affected: 102_000,economic: '$4.8M' },
-  { year: '2024', event: 'January Flooding',      impact: 'Medium', affected: 12_000, economic: '$0.5M' },
-];
-
 export default function HistoryPage() {
   const [tab, setTab]           = useState<'rainfall' | 'water' | 'events'>('rainfall');
   const [window, setWindow]     = useState<7 | 30>(7);
   const [river, setRiver]       = useState<RiverStatus | null>(null);
+  
+  const [events, setEvents]     = useState<HistoricalEvent[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    year: '',
+    event_name: '',
+    impact_level: 'High',
+    people_affected: '',
+    economic_loss: ''
+  });
 
   useEffect(() => {
     fetch('http://localhost:8000/api/v1/charts/river-levels')
@@ -51,6 +59,41 @@ export default function HistoryPage() {
         last_updated: new Date().toISOString(),
       }));
   }, []);
+
+  const fetchEvents = () => {
+    fetch('http://localhost:8000/api/v1/charts/historical-events')
+      .then(r => r.json())
+      .then(data => setEvents(data))
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...formData,
+        people_affected: parseInt(formData.people_affected) || 0
+      };
+      
+      const res = await fetch('http://localhost:8000/api/v1/charts/historical-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (res.ok) {
+        setIsModalOpen(false);
+        setFormData({ year: '', event_name: '', impact_level: 'High', people_affected: '', economic_loss: '' });
+        fetchEvents();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <AppShell>
@@ -68,8 +111,9 @@ export default function HistoryPage() {
             key={t}
             className={`btn ${tab === t ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setTab(t)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            {t === 'rainfall' ? '🌧️ Rainfall Trends' : t === 'water' ? '🌊 Water Levels' : '📚 Historical Events'}
+            {t === 'rainfall' ? <><CloudRain size={16} /> Rainfall Trends</> : t === 'water' ? <><Waves size={16} /> Water Levels</> : <><HistoryIcon size={16} /> Historical Events</>}
           </button>
         ))}
       </div>
@@ -92,7 +136,9 @@ export default function HistoryPage() {
       {tab === 'water' && river && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
-            <div className="card-title">🌊 {river.river_name}</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Waves size={20} /> {river.river_name}
+            </div>
             <div style={{ display: 'flex', gap: 32, marginTop: 12 }}>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Current Level</div>
@@ -127,7 +173,15 @@ export default function HistoryPage() {
       {/* HISTORICAL EVENTS TAB */}
       {tab === 'events' && (
         <div className="card">
-          <div className="card-title">📚 Past Flood Events — Chikwawa District</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <HistoryIcon size={20} /> Past Flood Events — Chikwawa District
+            </div>
+            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+              <Plus size={16} /> Add Event
+            </button>
+          </div>
+          
           <div style={{ marginTop: 12, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
@@ -138,21 +192,95 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {historicalEvents.map(ev => (
-                  <tr key={ev.year + ev.event} style={{ borderBottom: '1px solid var(--border)' }}>
+                {events.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No historical events recorded.
+                    </td>
+                  </tr>
+                ) : events.map(ev => (
+                  <tr key={ev.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '10px 12px', fontWeight: 600 }}>{ev.year}</td>
-                    <td style={{ padding: '10px 12px' }}>{ev.event}</td>
+                    <td style={{ padding: '10px 12px' }}>{ev.event_name}</td>
                     <td style={{ padding: '10px 12px' }}>
-                      <span className={`badge badge-${ev.impact === 'High' ? 'high' : 'medium'}`}>
-                        <span className="badge-dot" />{ev.impact}
+                      <span className={`badge badge-${ev.impact_level === 'High' ? 'high' : ev.impact_level === 'Medium' ? 'medium' : 'low'}`}>
+                        <span className="badge-dot" />{ev.impact_level}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 12px' }}>{ev.affected.toLocaleString()}</td>
-                    <td style={{ padding: '10px 12px' }}>{ev.economic}</td>
+                    <td style={{ padding: '10px 12px' }}>{ev.people_affected.toLocaleString()}</td>
+                    <td style={{ padding: '10px 12px' }}>{ev.economic_loss}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Add Event Modal */}
+      {isModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: 400, position: 'relative' }}>
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-muted)' }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ marginBottom: 20 }}>Add Historical Event</h3>
+            
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>Year</label>
+                <input 
+                  type="text" required
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  value={formData.year} onChange={e => setFormData({...formData, year: e.target.value})} 
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>Event Name</label>
+                <input 
+                  type="text" required
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  value={formData.event_name} onChange={e => setFormData({...formData, event_name: e.target.value})} 
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>Impact Level</label>
+                <select 
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  value={formData.impact_level} onChange={e => setFormData({...formData, impact_level: e.target.value})}
+                >
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>People Affected</label>
+                <input 
+                  type="number" required
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  value={formData.people_affected} onChange={e => setFormData({...formData, people_affected: e.target.value})} 
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500 }}>Economic Loss (e.g., $2.4M)</label>
+                <input 
+                  type="text" required
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                  value={formData.economic_loss} onChange={e => setFormData({...formData, economic_loss: e.target.value})} 
+                />
+              </div>
+              
+              <button type="submit" className="btn btn-primary" style={{ marginTop: 8, justifyContent: 'center' }}>
+                Save Event
+              </button>
+            </form>
           </div>
         </div>
       )}

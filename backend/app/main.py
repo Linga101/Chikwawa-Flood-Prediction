@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine, Base
 from app.api.v1 import routes_auth, routes_alerts, routes_websocket, routes_risk, routes_map, routes_charts
 
+# Import models to ensure they are registered with SQLAlchemy
+from app.db.models.HistoricalEvent import HistoricalEvent
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 

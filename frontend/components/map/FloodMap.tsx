@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
-import { MapContainer, TileLayer, Circle, Popup, Polyline, useMap } from 'react-leaflet';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Circle, Popup, Polyline, useMap, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
 // Chikwawa District Traditional Authority zones with approximate centroids
 const TA_ZONES = [
@@ -29,11 +30,13 @@ function classifyRisk(prob: number) {
   return               { level: 'LOW',    color: '#16a34a', fillColor: '#16a34a' };
 }
 
-function MapZoom() {
+function MapZoom({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
-    map.setView([-16.15, 34.80], 10);
-  }, [map]);
+    if (bounds && bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }, [map, bounds]);
   return null;
 }
 
@@ -42,6 +45,22 @@ interface FloodMapProps {
 }
 
 export default function FloodMap({ activeLayers }: FloodMapProps) {
+  const [geoData, setGeoData] = useState<any>(null);
+  const [bounds, setBounds] = useState<L.LatLngBounds | null>(null);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/v1/map-data')
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.features && data.features.length > 0) {
+          setGeoData(data);
+          const layer = L.geoJSON(data);
+          setBounds(layer.getBounds());
+        }
+      })
+      .catch(console.error);
+  }, []);
+
   return (
     <MapContainer
       center={[-16.15, 34.80]}
@@ -49,13 +68,26 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
       style={{ height: '100%', width: '100%' }}
       scrollWheelZoom={true}
     >
-      <MapZoom />
+      <MapZoom bounds={bounds} />
 
       {/* Base tile layer */}
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+
+      {/* District Boundary GeoJSON */}
+      {geoData && (
+        <GeoJSON 
+          data={geoData} 
+          style={{
+            color: '#2563eb',
+            weight: 2,
+            fillColor: '#3b82f6',
+            fillOpacity: 0.1
+          }} 
+        />
+      )}
 
       {/* Shire River overlay */}
       {activeLayers.includes('rivers') && (
@@ -115,18 +147,6 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
           </Circle>
         );
       })}
-
-      {/* Sensor network markers */}
-      {activeLayers.includes('sensors') && TA_ZONES.map(zone => (
-        <Circle
-          key={`sensor-${zone.name}`}
-          center={[zone.lat + 0.05, zone.lng + 0.05]}
-          radius={1200}
-          pathOptions={{ color: '#0ea5e9', fillColor: '#0ea5e9', fillOpacity: 0.8, weight: 1 }}
-        >
-          <Popup>📡 GEE Sensor Node — {zone.name}</Popup>
-        </Circle>
-      ))}
     </MapContainer>
   );
 }

@@ -5,9 +5,13 @@ import AppShell from '@/components/layout/AppShell';
 import RiskZonesPanel from '@/components/dashboard/RiskZonesPanel';
 import AlertFeed from '@/components/dashboard/AlertFeed';
 import RainfallChart from '@/components/charts/RainfallChart';
+import { 
+  Activity, BellRing, BarChart2, AlertOctagon, 
+  AlertTriangle, CheckCircle2, TrendingDown, Map as MapIcon 
+} from 'lucide-react';
 
 // --- Types ---
-interface StatCard { label: string; value: string; icon: string; meta: string; }
+interface StatCard { label: string; value: string; icon: React.ReactNode; meta: string; }
 
 const TA_ZONES = [
   { name: 'TA Ngabu', prob: 0 },
@@ -70,11 +74,17 @@ export default function DashboardPage() {
   const highestZone = riskData.find(z => z.prob === maxProb)?.name ?? 'N/A';
   const overallRisk = classifyRisk(maxProb);
 
+  const getRiskIcon = (level: string) => {
+    if (level === 'HIGH') return <AlertOctagon size={24} color="var(--risk-high)" />;
+    if (level === 'MEDIUM') return <AlertTriangle size={24} color="var(--risk-med)" />;
+    return <CheckCircle2 size={24} color="var(--risk-low)" />;
+  };
+
   const statCards: StatCard[] = [
-    { label: 'System Status', value: 'LIVE', icon: '🟢', meta: `Last sync: ${lastSync}` },
-    { label: 'Active Alerts', value: String(alerts.filter(a => a.level === 'HIGH').length), icon: '🔔', meta: 'HIGH risk events' },
-    { label: 'Max Flood Prob.', value: `${Math.round(maxProb * 100)}%`, icon: '📊', meta: `Highest: ${highestZone}` },
-    { label: 'Overall Risk Level', value: overallRisk, icon: overallRisk === 'HIGH' ? '🚨' : overallRisk === 'MEDIUM' ? '⚠️' : '✅', meta: 'Current district status' },
+    { label: 'System Status', value: 'LIVE', icon: <Activity size={24} color="var(--risk-low)" />, meta: `Last sync: ${lastSync}` },
+    { label: 'Active Alerts', value: String(alerts.filter(a => a.level === 'HIGH').length), icon: <BellRing size={24} color="var(--brand-blue)" />, meta: 'HIGH risk events' },
+    { label: 'Max Flood Prob.', value: `${Math.round(maxProb * 100)}%`, icon: <BarChart2 size={24} color="var(--brand-purple)" />, meta: `Highest: ${highestZone}` },
+    { label: 'Overall Risk Level', value: overallRisk, icon: getRiskIcon(overallRisk), meta: 'Current district status' },
   ];
 
   return (
@@ -94,7 +104,9 @@ export default function DashboardPage() {
       <div className="stat-grid">
         {statCards.map((card, i) => (
           <div key={i} className="card">
-            <div className="card-title">{card.icon} {card.label}</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {card.icon} {card.label}
+            </div>
             <div className="card-value" style={{ fontSize: 22 }}>{card.value}</div>
             <div className="card-meta">{card.meta}</div>
           </div>
@@ -106,13 +118,17 @@ export default function DashboardPage() {
         <div className="dashboard-left">
           {/* 7-Day Rainfall Chart */}
           <div className="card">
-            <div className="card-title">📉 7-Day Precipitation Trend</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <TrendingDown size={18} /> 7-Day Precipitation Trend
+            </div>
             <RainfallChart window={7} />
           </div>
 
           {/* Risk Zones progress bars */}
           <div className="card">
-            <div className="card-title">🗺️ Risk Zones Overview — Traditional Authorities</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MapIcon size={18} /> Risk Zones Overview — Traditional Authorities
+            </div>
             <div style={{ marginTop: 12 }}>
               {riskData.map(zone => {
                 const level = classifyRisk(zone.prob);
@@ -144,7 +160,9 @@ export default function DashboardPage() {
         <div className="dashboard-right">
           {/* Live Alert Feed */}
           <div className="card" style={{ flex: 1 }}>
-            <div className="card-title" style={{ marginBottom: 12 }}>🔔 Live Activity Feed</div>
+            <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <BellRing size={18} /> Live Activity Feed
+            </div>
             <AlertFeed alerts={alerts} />
           </div>
         </div>
