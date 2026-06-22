@@ -1,6 +1,5 @@
 import ee
 from app.config import settings
-
 def initialize_gee():
     """
     Initializes the Google Earth Engine API using service account credentials.

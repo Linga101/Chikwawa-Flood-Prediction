@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     AIRTEL_MALAWI_SENDER_ID: str = "FLOOD-ALERT"
     DAHITI_API_KEY: str = ""
 
+    # Android SMS Gateway (Textbee.dev)
+    TEXTBEE_API_KEY: str = ""
+    TEXTBEE_DEVICE_ID: str = ""
+
     # Model Configuration
     ALERT_THRESHOLD: float = 0.85
     MODEL_DIR: str = "models/"

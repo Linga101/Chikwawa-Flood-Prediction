@@ -12,7 +12,7 @@ def fetch_soil_moisture():
     roi = ee.Geometry.Rectangle([34.5, -16.5, 35.0, -15.8])
     
     end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=3)
+    start_date = end_date - timedelta(days=14)
     
     # SMAP L3 Soil Moisture (Daily)
     dataset = ee.ImageCollection("NASA/SMAP/SPL3SMP_E/005") \

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthContextType {
@@ -8,6 +8,12 @@ interface AuthContextType {
   login: (token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  /**
+   * A fetch wrapper that automatically attaches the Bearer token.
+   * If the server returns 401/403 it clears the stored token and
+   * redirects the user to the landing/login page.
+   */
+  authFetch: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -15,32 +21,30 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {},
   logout: () => {},
   isAuthenticated: false,
+  authFetch: (input, init) => fetch(input, init),
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken]   = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
+  const router   = useRouter();
   const pathname = usePathname();
 
+  // Hydrate token from localStorage on first render
   useEffect(() => {
-    // Read from localStorage on mount
     const storedToken = localStorage.getItem('auth_token');
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    if (storedToken) setToken(storedToken);
     setMounted(true);
   }, []);
 
+  const PUBLIC_ROUTES = ['/', '/login'];
+
+  // Route guard
   useEffect(() => {
     if (!mounted) return;
-    
-    // Protect routes
-    if (!token && pathname !== '/login') {
-      router.push('/login');
-    } else if (token && pathname === '/login') {
-      router.push('/dashboard');
-    }
+    const isPublic = PUBLIC_ROUTES.includes(pathname);
+    if (!token && !isPublic) router.push('/');
+    else if (token && isPublic) router.push('/dashboard');
   }, [token, pathname, router, mounted]);
 
   const login = (newToken: string) => {
@@ -49,19 +53,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/dashboard');
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('auth_token');
     setToken(null);
-    router.push('/login');
-  };
+    router.push('/');
+  }, [router]);
 
-  // Prevent hydration mismatch by not rendering protected content until mounted
+  /**
+   * Wraps fetch() with:
+   *  - Automatic Authorization header injection
+   *  - Auto-logout + redirect on 401/403 (stale / invalid token)
+   */
+  const authFetch = useCallback(
+    async (input: RequestInfo, init: RequestInit = {}): Promise<Response> => {
+      const headers = new Headers(init.headers ?? {});
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      const res = await fetch(input, { ...init, headers });
+      if (res.status === 401 || res.status === 403) {
+        // Token expired or invalid — force re-login
+        logout();
+      }
+      return res;
+    },
+    [token, logout]
+  );
+
   if (!mounted) {
-    return null; 
+    return (
+      <div style={{ visibility: 'hidden', pointerEvents: 'none' }}>
+        {children}
+      </div>
+    );
   }
 
   return (
-    <AuthContext.Provider value={{ token, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ token, login, logout, isAuthenticated: !!token, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

@@ -63,3 +63,31 @@ async def create_historical_event(event: HistoricalEventCreate, db: Session = De
     db.refresh(db_event)
     return db_event
 
+@router.put("/historical-events/{event_id}", response_model=HistoricalEventResponse)
+async def update_historical_event(event_id: int, event: HistoricalEventCreate, db: Session = Depends(get_db)):
+    """
+    Updates an existing historical flood event record.
+    """
+    db_event = db.query(HistoricalEvent).filter(HistoricalEvent.id == event_id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    for key, value in event.dict().items():
+        setattr(db_event, key, value)
+        
+    db.commit()
+    db.refresh(db_event)
+    return db_event
+
+@router.delete("/historical-events/{event_id}")
+async def delete_historical_event(event_id: int, db: Session = Depends(get_db)):
+    """
+    Deletes an existing historical flood event record.
+    """
+    db_event = db.query(HistoricalEvent).filter(HistoricalEvent.id == event_id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+        
+    db.delete(db_event)
+    db.commit()
+    return {"message": "Event deleted successfully"}

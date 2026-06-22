@@ -32,7 +32,8 @@ def fetch_ndvi():
     stats = ndvi.reduceRegion(
         reducer=ee.Reducer.mean(),
         geometry=roi,
-        scale=10 # Sentinel-2 is 10m
+        scale=10, # Sentinel-2 is 10m
+        maxPixels=1e9
     ).getInfo()
     
     return stats.get('NDVI', 0.5)

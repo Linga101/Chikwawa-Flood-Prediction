@@ -22,8 +22,12 @@ def predict(features_df: pd.DataFrame):
     # in the preprocessing pipeline (Path A logic)
     X_scaled = scaler.transform(df)
     
-    # Predict probabilities [P(no flood), P(flood)]
-    # We want the probability of flood (index 1)
-    probabilities = model.predict_proba(X_scaled)[:, 1]
+    # Predict probabilities
+    if hasattr(model, 'predict_proba'):
+        # Scikit-learn or XGBoost style
+        probabilities = model.predict_proba(X_scaled)[:, 1]
+    else:
+        # LightGBM Booster style (returns 1D array of probabilities)
+        probabilities = model.predict(X_scaled)
     
     return probabilities

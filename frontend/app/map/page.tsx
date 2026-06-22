@@ -2,8 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import AppShell from '@/components/layout/AppShell';
-import { useState } from 'react';
-import { Map as MapIcon, CloudRain, Waves, Car, Radio } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Map as MapIcon, ShieldAlert, Waves } from 'lucide-react';
 
 // Leaflet must be dynamically imported (no SSR) as it uses browser APIs
 const FloodMap = dynamic(() => import('@/components/map/FloodMap'), { ssr: false, loading: () => (
@@ -13,17 +13,43 @@ const FloodMap = dynamic(() => import('@/components/map/FloodMap'), { ssr: false
 )});
 
 const LAYERS = [
-  { id: 'rainfall',   label: 'Rainfall Data',     icon: <CloudRain size={16} /> },
-  { id: 'rivers',     label: 'River Network',     icon: <Waves size={16} /> },
+  { id: 'rainfall',   label: 'Risk Level',    icon: <ShieldAlert size={16} /> },
+  { id: 'rivers',     label: 'River Network', icon: <Waves size={16} /> },
 ];
+
+function classifyRisk(prob: number): 'HIGH' | 'MEDIUM' | 'LOW' {
+  if (prob >= 0.6) return 'HIGH';
+  if (prob >= 0.3) return 'MEDIUM';
+  return 'LOW';
+}
 
 export default function MapPage() {
   const [activeLayers, setActiveLayers] = useState<string[]>(['rainfall', 'rivers']);
+  const [zoneCounts, setZoneCounts] = useState({ high: 0, moderate: 0, low: 0 });
+  const [countsLoading, setCountsLoading] = useState(true);
 
   const toggleLayer = (id: string) =>
     setActiveLayers(prev => prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]);
 
-  const zoneCounts = { critical: 0, high: 2, moderate: 8, low: 834 };
+  // Fetch live risk data and compute zone counts
+  useEffect(() => {
+    fetch('http://localhost:8000/api/v1/risk/latest-risk')
+      .then(r => r.json())
+      .then((data: any[]) => {
+        if (Array.isArray(data)) {
+          let high = 0, moderate = 0, low = 0;
+          data.forEach(z => {
+            const level = classifyRisk(z.probability ?? 0);
+            if (level === 'HIGH') high++;
+            else if (level === 'MEDIUM') moderate++;
+            else low++;
+          });
+          setZoneCounts({ high, moderate, low });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCountsLoading(false));
+  }, []);
 
   return (
     <AppShell>
@@ -76,24 +102,34 @@ export default function MapPage() {
             </div>
           </div>
 
-          {/* Zone Summary */}
+          {/* Zone Summary — live from ML predictions */}
           <div className="card">
             <div className="card-title">Zone Summary</div>
-            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { label: 'High Risk',     count: zoneCounts.high,     color: 'var(--risk-high)' },
-                { label: 'Moderate Risk', count: zoneCounts.moderate,  color: 'var(--risk-med)' },
-                { label: 'Low Risk',      count: zoneCounts.low,       color: 'var(--risk-low)' },
-              ].map(zone => (
-                <div key={zone.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: zone.color }} />
-                    <span style={{ fontSize: 13 }}>{zone.label}</span>
-                  </div>
-                  <span style={{ fontWeight: 700, color: zone.color }}>{zone.count}</span>
-                </div>
-              ))}
+            <div style={{ marginTop: 4, marginBottom: 8, fontSize: 11, color: 'var(--text-muted)' }}>
+              Based on latest ML predictions across 5 TA zones
             </div>
+            {countsLoading ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '8px 0' }}>Loading...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'High Risk',     count: zoneCounts.high,     color: 'var(--risk-high)' },
+                  { label: 'Moderate Risk', count: zoneCounts.moderate,  color: 'var(--risk-med)'  },
+                  { label: 'Low Risk',      count: zoneCounts.low,       color: 'var(--risk-low)'  },
+                ].map(zone => (
+                  <div key={zone.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: zone.color }} />
+                      <span style={{ fontSize: 13 }}>{zone.label}</span>
+                    </div>
+                    <span style={{ fontWeight: 700, color: zone.color, fontSize: 16 }}>{zone.count}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-muted)' }}>
+                  Total monitored zones: {zoneCounts.high + zoneCounts.moderate + zoneCounts.low}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Legend */}

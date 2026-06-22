@@ -32,6 +32,6 @@ def read_root():
 app.include_router(routes_auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(routes_alerts.router, prefix="/api/v1", tags=["alerts"])
 app.include_router(routes_websocket.router, prefix="/api/v1", tags=["notifications"])
-app.include_router(routes_risk.router, prefix="/api/v1", tags=["risk"])
+app.include_router(routes_risk.router, prefix="/api/v1/risk", tags=["risk"])
 app.include_router(routes_map.router, prefix="/api/v1", tags=["map"])
 app.include_router(routes_charts.router, prefix="/api/v1/charts", tags=["trends"])

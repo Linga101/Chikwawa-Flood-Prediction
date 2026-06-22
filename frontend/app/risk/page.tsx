@@ -1,36 +1,42 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import AppShell from '@/components/layout/AppShell';
+import {
+  Leaf, Mountain, Waves, FlaskConical, Trees,
+  Navigation, ArrowDownToLine, CloudRain, Droplets,
+  Satellite, Database, Zap
+} from 'lucide-react';
 
 interface Factor {
-  weight: number;
-  score:  number;
-  current_m?: number;
+  label:               string;
+  weight:              number;
+  score:               number;
+  note?:               string;
+  source?:             string;
+  is_live?:            boolean;
+  current_m?:          number;
   danger_threshold_m?: number;
 }
 
 interface Assessment {
   grid_id:         string;
   composite_score: number;
-  factors: {
-    rainfall_intensity:  Factor;
-    soil_saturation:     Factor;
-    river_level:         Factor;
-    infrastructure_risk: Factor;
-    elevation_slope:     Factor;
-  };
+  ml_probability:  number;
+  factors:         Record<string, Factor>;
 }
 
-import { CloudRain, Sprout, Waves, Home, Mountain } from 'lucide-react';
-
-const FACTOR_LABELS: Record<string, { label: string; icon: React.ReactNode; desc: string }> = {
-  rainfall_intensity:  { label: 'Rainfall Intensity',  icon: <CloudRain size={16} />, desc: 'GPM satellite-derived precipitation accumulation (7-day)' },
-  soil_saturation:     { label: 'Soil Saturation',     icon: <Sprout size={16} />, desc: 'SMAP volumetric water content — indicates how much rain the soil can absorb' },
-  river_level:         { label: 'Shire River Level',   icon: <Waves size={16} />, desc: 'Current Shire River height at Chiromo gauge vs danger threshold (6.0m)' },
-  infrastructure_risk: { label: 'Infrastructure Risk', icon: <Home size={16} />, desc: 'Land cover and settlement density in the grid cell' },
-  elevation_slope:     { label: 'Elevation / Slope',   icon: <Mountain size={16} />, desc: 'Terrain elevation and slope — lower areas are higher risk' },
+// Icon map keyed on the factor key returned by the backend
+const FACTOR_ICONS: Record<string, React.ReactNode> = {
+  ndvi:                   <Leaf size={15} />,
+  slope:                  <Mountain size={15} />,
+  elevation_to_river:     <Waves size={15} />,
+  soil_type:              <FlaskConical size={15} />,
+  land_cover:             <Trees size={15} />,
+  dist_river:             <Navigation size={15} />,
+  elevation:              <ArrowDownToLine size={15} />,
+  rainfall:               <CloudRain size={15} />,
+  topographic_wet_index:  <Droplets size={15} />,
 };
 
 function scoreColor(score: number) {
@@ -39,14 +45,7 @@ function scoreColor(score: number) {
   return 'var(--risk-low)';
 }
 
-const TA_ZONES = ['grid_ta_ngabu', 'grid_ta_makhwira', 'grid_ta_lundu', 'grid_ta_kasisi', 'grid_ta_chapananga'];
-const TA_LABELS: Record<string, string> = {
-  grid_ta_ngabu:      'TA Ngabu',
-  grid_ta_makhwira:   'TA Makhwira',
-  grid_ta_lundu:      'TA Lundu',
-  grid_ta_kasisi:     'TA Kasisi',
-  grid_ta_chapananga: 'TA Chapananga',
-};
+const TA_ZONES = ['TA Ngabu', 'TA Makhwira', 'TA Lundu', 'TA Kasisi', 'TA Chapananga'];
 
 export default function RiskPage() {
   const [selectedGrid, setSelectedGrid] = useState(TA_ZONES[0]);
@@ -55,34 +54,31 @@ export default function RiskPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:8000/api/v1/risk/${selectedGrid}/assessment`)
+    fetch(`http://localhost:8000/api/v1/risk/${encodeURIComponent(selectedGrid)}/assessment`)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
       .then(setAssessment)
-      .catch(() => {
-        // Fallback demo data
-        setAssessment({
-          grid_id: selectedGrid,
-          composite_score: 42,
-          factors: {
-            rainfall_intensity:  { weight: 30, score: 58 },
-            soil_saturation:     { weight: 25, score: 44 },
-            river_level:         { weight: 20, score: 68, current_m: 4.1, danger_threshold_m: 6.0 },
-            infrastructure_risk: { weight: 15, score: 32 },
-            elevation_slope:     { weight: 10, score: 68 },
-          },
-        });
-      })
+      .catch(() => setAssessment(null))
       .finally(() => setLoading(false));
   }, [selectedGrid]);
 
   const composite = assessment?.composite_score ?? 0;
+  const factors   = assessment ? Object.entries(assessment.factors) : [];
+
+  // Sort: live factors first, then by weight descending
+  const sorted = [...factors].sort(([, a], [, b]) => {
+    if (a.is_live && !b.is_live) return -1;
+    if (!a.is_live && b.is_live) return 1;
+    return b.weight - a.weight;
+  });
 
   return (
     <AppShell>
       <div className="topbar">
         <div>
           <div className="topbar-title">Risk Assessment</div>
-          <div className="topbar-subtitle">5-Factor weighted flood risk breakdown by Traditional Authority</div>
+          <div className="topbar-subtitle">
+            9-Factor LightGBM feature breakdown by Traditional Authority — weights derived from model gain scores
+          </div>
         </div>
       </div>
 
@@ -94,80 +90,194 @@ export default function RiskPage() {
             className={`btn ${selectedGrid === g ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setSelectedGrid(g)}
           >
-            {TA_LABELS[g]}
+            {g}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>Loading assessment...</div>
-      ) : assessment && (
-        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>
+          Loading assessment…
+        </div>
+      ) : !assessment ? (
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>
+          Could not load assessment data. Make sure the backend is running.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, alignItems: 'start' }}>
 
-          {/* Composite Score Gauge */}
-          <div className="card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          {/* ── Composite Score Gauge ─────────────────────────────────────── */}
+          <div className="card" style={{
+            textAlign: 'center', display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: 16,
+          }}>
             <div className="card-title">Composite Risk Score</div>
+
+            {/* Conic-gradient dial */}
             <div style={{
-              width: 140, height: 140, borderRadius: '50%',
+              width: 148, height: 148, borderRadius: '50%',
               background: `conic-gradient(${scoreColor(composite)} ${composite * 3.6}deg, var(--border) 0)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 0 0 8px var(--bg-card)`,
-              position: 'relative',
+              boxShadow: `0 0 0 8px var(--bg-card), 0 0 24px ${scoreColor(composite)}44`,
             }}>
               <div style={{
-                width: 108, height: 108, borderRadius: '50%',
+                width: 112, height: 112, borderRadius: '50%',
                 background: 'var(--bg-card)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
               }}>
-                <div style={{ fontSize: 30, fontWeight: 800, color: scoreColor(composite) }}>{composite}</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: scoreColor(composite) }}>
+                  {composite}
+                </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ 100</div>
               </div>
             </div>
+
             <div>
-              <div style={{ fontWeight: 600, fontSize: 15 }}>{TA_LABELS[selectedGrid]}</div>
-              <span className={`badge badge-${composite >= 60 ? 'high' : composite >= 30 ? 'medium' : 'low'}`} style={{ marginTop: 6 }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{selectedGrid}</div>
+              <span
+                className={`badge badge-${composite >= 60 ? 'high' : composite >= 30 ? 'medium' : 'low'}`}
+                style={{ marginTop: 6 }}
+              >
                 <span className={`badge-dot ${composite >= 60 ? 'pulse' : ''}`} />
                 {composite >= 60 ? 'HIGH' : composite >= 30 ? 'MEDIUM' : 'LOW'} RISK
               </span>
             </div>
-          </div>
 
-          {/* 5-Factor Breakdown */}
-          <div className="card">
-            <div className="card-title">Factor Breakdown</div>
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {Object.entries(assessment.factors).map(([key, factor]) => {
-                const meta = FACTOR_LABELS[key];
-                return (
-                  <div key={key}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <div>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{meta.icon} {meta.label}</span>
-                        <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 7px', borderRadius: 999 }}>
-                          Weight: {factor.weight}%
-                        </span>
-                      </div>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: scoreColor(factor.score) }}>
-                        {factor.score}/100
-                      </span>
-                    </div>
-                    <div className="progress-bar-track">
-                      <div
-                        className="progress-bar-fill"
-                        style={{ width: `${factor.score}%`, background: scoreColor(factor.score) }}
-                      />
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{meta.desc}</div>
-                    {key === 'river_level' && factor.current_m != null && (
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                        Current: {factor.current_m}m / Danger: {factor.danger_threshold_m}m
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {/* ML probability */}
+            <div style={{
+              width: '100%', background: 'var(--bg-secondary)',
+              borderRadius: 10, padding: '10px 14px',
+              fontSize: 12, color: 'var(--text-secondary)',
+              borderTop: '1px solid var(--border)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Zap size={12} /> LightGBM Prob.
+                </span>
+                <span style={{ fontWeight: 700, color: scoreColor(composite) }}>
+                  {((assessment.ml_probability ?? 0) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                ML model is authoritative source
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div style={{ width: '100%', fontSize: 11, color: 'var(--text-muted)', textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                Live sensor data
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--text-muted)', display: 'inline-block' }} />
+                Static terrain data
+              </div>
             </div>
           </div>
+
+          {/* ── 9-Factor Breakdown ────────────────────────────────────────── */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div className="card-title" style={{ margin: 0 }}>Factor Breakdown</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Satellite size={12} /> 9 features · sorted by live → weight
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {sorted.map(([key, factor]) => (
+                <div key={key}>
+                  {/* Header row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 600, fontSize: 13 }}>
+                        {FACTOR_ICONS[key]}
+                        {factor.label}
+                      </span>
+
+                      {/* Weight badge */}
+                      <span style={{
+                        fontSize: 10, color: 'var(--text-muted)',
+                        background: 'var(--bg-secondary)',
+                        padding: '2px 7px', borderRadius: 999,
+                      }}>
+                        Weight: {factor.weight}%
+                      </span>
+
+                      {/* Live / Static badge */}
+                      {factor.is_live ? (
+                        <span style={{
+                          fontSize: 10, color: '#16a34a',
+                          background: 'rgba(22,163,74,0.12)',
+                          padding: '2px 7px', borderRadius: 999,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}>
+                          <span style={{
+                            width: 5, height: 5, borderRadius: '50%',
+                            background: '#16a34a', display: 'inline-block',
+                            animation: 'pulse 1.5s infinite',
+                          }} />
+                          LIVE
+                        </span>
+                      ) : (
+                        <span style={{
+                          fontSize: 10, color: 'var(--text-muted)',
+                          background: 'var(--bg-secondary)',
+                          padding: '2px 7px', borderRadius: 999,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}>
+                          <Database size={9} /> STATIC
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Score */}
+                    <span style={{ fontWeight: 700, fontSize: 14, color: scoreColor(factor.score), whiteSpace: 'nowrap' }}>
+                      {factor.score}/100
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="progress-bar-track" style={{ height: 7, borderRadius: 999, marginBottom: 5 }}>
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${factor.score}%`,
+                        background: scoreColor(factor.score),
+                        borderRadius: 999,
+                        transition: 'width 1s cubic-bezier(0.4,0,0.2,1)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Note */}
+                  {factor.note && (
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {factor.note}
+                    </div>
+                  )}
+
+                  {/* River level extra detail */}
+                  {key === 'elevation_to_river' && factor.current_m != null && (
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', gap: 12 }}>
+                      <span>Current river: <strong>{factor.current_m}m</strong></span>
+                      <span>Danger: <strong style={{ color: 'var(--risk-high)' }}>{factor.danger_threshold_m}m</strong></span>
+                    </div>
+                  )}
+
+                  {/* Source tag */}
+                  {factor.source && (
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3, opacity: 0.75 }}>
+                      Source: {factor.source}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       )}
     </AppShell>

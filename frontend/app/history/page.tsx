@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import RainfallChart from '@/components/charts/RainfallChart';
-import { CloudRain, Waves, History as HistoryIcon, Plus, X } from 'lucide-react';
+import { CloudRain, Waves, History as HistoryIcon, Plus, X, Edit2, Trash2 } from 'lucide-react';
 
 interface RiverStatus {
   river_name: string;
@@ -37,6 +37,7 @@ export default function HistoryPage() {
   
   const [events, setEvents]     = useState<HistoricalEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     year: '',
     event_name: '',
@@ -76,23 +77,62 @@ export default function HistoryPage() {
     try {
       const payload = {
         ...formData,
-        people_affected: parseInt(formData.people_affected) || 0
+        people_affected: parseInt(String(formData.people_affected).replace(/,/g, '')) || 0
       };
       
-      const res = await fetch('http://localhost:8000/api/v1/charts/historical-events', {
-        method: 'POST',
+      const url = editingEventId 
+        ? `http://localhost:8000/api/v1/charts/historical-events/${editingEventId}`
+        : 'http://localhost:8000/api/v1/charts/historical-events';
+      
+      const method = editingEventId ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       
       if (res.ok) {
         setIsModalOpen(false);
+        setEditingEventId(null);
         setFormData({ year: '', event_name: '', impact_level: 'High', people_affected: '', economic_loss: '' });
         fetchEvents();
       }
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleEdit = (ev: HistoricalEvent) => {
+    setFormData({
+      year: ev.year,
+      event_name: ev.event_name,
+      impact_level: ev.impact_level,
+      people_affected: String(ev.people_affected),
+      economic_loss: ev.economic_loss
+    });
+    setEditingEventId(ev.id);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/charts/historical-events/${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchEvents();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const openAddModal = () => {
+    setFormData({ year: '', event_name: '', impact_level: 'High', people_affected: '', economic_loss: '' });
+    setEditingEventId(null);
+    setIsModalOpen(true);
   };
 
   return (
@@ -177,7 +217,7 @@ export default function HistoryPage() {
             <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <HistoryIcon size={20} /> Past Flood Events — Chikwawa District
             </div>
-            <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
+            <button className="btn btn-primary" onClick={openAddModal}>
               <Plus size={16} /> Add Event
             </button>
           </div>
@@ -186,7 +226,7 @@ export default function HistoryPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  {['Year', 'Event', 'Impact', 'People Affected', 'Economic Loss'].map(h => (
+                  {['Year', 'Event', 'Impact', 'People Affected', 'Economic Loss', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600 }}>{h}</th>
                   ))}
                 </tr>
@@ -209,6 +249,16 @@ export default function HistoryPage() {
                     </td>
                     <td style={{ padding: '10px 12px' }}>{ev.people_affected.toLocaleString()}</td>
                     <td style={{ padding: '10px 12px' }}>{ev.economic_loss}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-ghost" style={{ padding: 6, color: 'var(--brand-blue)' }} onClick={() => handleEdit(ev)} title="Edit">
+                          <Edit2 size={16} />
+                        </button>
+                        <button className="btn btn-ghost" style={{ padding: 6, color: 'var(--risk-high)' }} onClick={() => handleDelete(ev.id)} title="Delete">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -230,7 +280,7 @@ export default function HistoryPage() {
             >
               <X size={20} />
             </button>
-            <h3 style={{ marginBottom: 20 }}>Add Historical Event</h3>
+            <h3 style={{ marginBottom: 20 }}>{editingEventId ? 'Edit Historical Event' : 'Add Historical Event'}</h3>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -18,20 +18,24 @@ class ModelLoader:
 
     def load(self):
         version = self._get_active_version()
-        model_path = os.path.join(self.model_dir, f"xgb_flood_model_{version}.pkl")
+        model_path = os.path.join(self.model_dir, f"lgb_model_{version}.txt")
         scaler_path = os.path.join(self.model_dir, f"scaler_{version}.pkl")
 
         # Fallback to unversioned names if versioned files don't exist
         if not os.path.exists(model_path):
-            model_path = os.path.join(self.model_dir, "xgb_flood_model.pkl")
+            model_path = os.path.join(self.model_dir, "lgb_model.txt")
         if not os.path.exists(scaler_path):
             scaler_path = os.path.join(self.model_dir, "scaler.pkl")
 
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at {model_path}")
         
-        with open(model_path, "rb") as f:
-            self.model = pickle.load(f)
+        if model_path.endswith('.txt'):
+            import lightgbm as lgb
+            self.model = lgb.Booster(model_file=model_path)
+        else:
+            with open(model_path, "rb") as f:
+                self.model = pickle.load(f)
         
         with open(scaler_path, "rb") as f:
             self.scaler = pickle.load(f)

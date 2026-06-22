@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/lib/AuthContext';
 import { Users, UserPlus, Phone, MapPin, Trash2, ShieldCheck } from 'lucide-react';
 
+
 interface Subscriber {
   id: number;
   phone_number: string;
@@ -15,7 +16,7 @@ interface Subscriber {
 const TA_ZONES = ['TA Ngabu', 'TA Makhwira', 'TA Lundu', 'TA Kasisi', 'TA Chapananga'];
 
 export default function ContactsPage() {
-  const { token } = useAuth();
+  const { authFetch } = useAuth();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -28,9 +29,7 @@ export default function ContactsPage() {
 
   const fetchSubscribers = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/subscribers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await authFetch('http://localhost:8000/api/v1/subscribers');
       if (res.ok) {
         const data = await res.json();
         setSubscribers(data);
@@ -43,8 +42,8 @@ export default function ContactsPage() {
   };
 
   useEffect(() => {
-    if (token) fetchSubscribers();
-  }, [token]);
+    fetchSubscribers();
+  }, []);
 
   const handleAddSubscriber = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,12 +52,9 @@ export default function ContactsPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/subscribers', {
+      const res = await authFetch('http://localhost:8000/api/v1/subscribers', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_number: phone, ta_area: taArea }),
       });
 
@@ -81,9 +77,8 @@ export default function ContactsPage() {
     if (!confirm('Are you sure you want to remove this contact?')) return;
     
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/subscribers/${id}`, {
+      const res = await authFetch(`http://localhost:8000/api/v1/subscribers/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (res.ok) {

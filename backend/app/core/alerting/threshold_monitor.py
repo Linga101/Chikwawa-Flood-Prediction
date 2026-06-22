@@ -1,36 +1,41 @@
 import asyncio
-from app.db.database import SessionLocal
-from app.config import settings
-from app.core.alerting.sms_gateway import send_sms_alert
 from app.core.alerting.websocket_notifier import manager
-from app.db.models.Subscriber import Subscriber
-from app.db.crud.crud_alerts import create_alert_log
 from app.core.prediction.risk_classifier import classify_risk, get_color_code, get_alert_message
 
 # Traditional Authority zones used for location-aware messaging
 TA_ZONES = ["TA Ngabu", "TA Makhwira", "TA Lundu", "TA Kasisi", "TA Chapananga"]
 
+
 def check_and_trigger_alerts(probabilities: list, grid_ids: list):
     """
-    Evaluates every grid cell prediction and:
-    1. Broadcasts a tailored risk alert for EVERY cell to the WebSocket dashboard
-       (LOW, MEDIUM, and HIGH all generate distinct messages).
-    2. Sends SMS alerts to registered subscribers only when risk is HIGH.
+    Evaluates every grid cell prediction and broadcasts a live WebSocket
+    notification to the dashboard UI.
+
+    NOTE: SMS dispatching has been intentionally removed from this function.
+    This system uses a human-in-the-loop model — an administrator must review
+    the risk on the dashboard and manually approve alert dispatch via the
+    POST /api/v1/alerts/dispatch endpoint. This prevents automated life-safety
+    messages from being sent without human verification.
     """
-    if not probabilities:
+    if probabilities is None or len(probabilities) == 0:
         return
 
-    max_prob = max(probabilities)
-    max_idx  = probabilities.index(max_prob)
+    import numpy as np
+    probabilities = np.asarray(probabilities)
+
+    max_idx  = int(np.argmax(probabilities))
+    max_prob = float(probabilities[max_idx])
     grid_id  = grid_ids[max_idx] if grid_ids else "unknown"
 
-    # --- Resolve the TA zone name from grid index for human-readable messages ---
+    # Resolve the TA zone name for human-readable messages
     ta_location = TA_ZONES[max_idx % len(TA_ZONES)]
     risk_level  = classify_risk(max_prob)
     color       = get_color_code(risk_level)
     message     = get_alert_message(risk_level, location=ta_location, probability=max_prob)
 
-    # --- 1. ALWAYS broadcast to the WebSocket dashboard (all three risk tiers) ---
+    # Always broadcast the live risk update to the WebSocket dashboard.
+    # This turns the dashboard widgets red/amber/green in real time.
+    # It does NOT send any SMS — that requires human approval.
     asyncio.run(manager.broadcast_alert({
         "type":        "RISK_UPDATE",
         "risk_level":  risk_level,
@@ -40,18 +45,3 @@ def check_and_trigger_alerts(probabilities: list, grid_ids: list):
         "location":    ta_location,
         "message":     message,
     }))
-
-    # --- 2. Send SMS ONLY for HIGH risk ---
-    if risk_level == "HIGH":
-        db = SessionLocal()
-        try:
-            subscribers = db.query(Subscriber).filter(Subscriber.is_active == True).all()
-            sms_body = (
-                f"CHIKWAWA FLOOD ALERT: {ta_location} is at HIGH flood risk "
-                f"({int(max_prob * 100)}%). Please follow official evacuation instructions."
-            )
-            for sub in subscribers:
-                asyncio.run(send_sms_alert(sub.phone_number, sms_body))
-                create_alert_log(db, "HIGH", "SMS", sub.phone_number)
-        finally:
-            db.close()
