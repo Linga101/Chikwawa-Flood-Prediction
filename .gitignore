@@ -33,3 +33,7 @@ htmlcov/
 .idea/
 *.swp
 *.swo
+
+# Transcripts and extracted docs (may contain secrets)
+transcript_user_input.txt
+docs_extracted.txt

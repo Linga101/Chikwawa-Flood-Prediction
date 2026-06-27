@@ -58,12 +58,12 @@ function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
 // ── Main Landing Page ─────────────────────────────────────────────────────
 export default function LandingPage() {
   const { login } = useAuth();
-  
-  const [username, setUsername]   = useState('');
-  const [password, setPassword]   = useState('');
-  const [error, setError]         = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [scrolled, setScrolled]   = useState(false);
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
 
   // Navbar shadow on scroll
@@ -110,10 +110,10 @@ export default function LandingPage() {
   ];
 
   const stats = [
-    { value: 5,    suffix: '',   label: 'TA Zones Monitored', icon: <Globe size={20} /> },
-    { value: 3,    suffix: '',   label: 'Risk Tier System',    icon: <AlertTriangle size={20} /> },
-    { value: 6,    suffix: 'hr', label: 'Prediction Cycle',    icon: <Activity size={20} /> },
-    { value: 11,   suffix: 'k+', label: 'People Protected',    icon: <Users size={20} /> },
+    { value: 5, suffix: '', label: 'TA Zones Monitored', icon: <Globe size={20} /> },
+    { value: 3, suffix: '', label: 'Risk Tier System', icon: <AlertTriangle size={20} /> },
+    { value: 6, suffix: 'hr', label: 'Prediction Cycle', icon: <Activity size={20} /> },
+    { value: 11, suffix: 'k+', label: 'People Protected', icon: <Users size={20} /> },
   ];
 
   // Live zone risk data fetched from backend
@@ -132,8 +132,8 @@ export default function LandingPage() {
             name: p.grid_id,
             pct: Math.round(p.probability * 100),
             color: p.risk_level === 'HIGH' ? '#ef4444'
-                 : p.risk_level === 'MEDIUM' ? '#d97706'
-                 : '#16a34a',
+              : p.risk_level === 'MEDIUM' ? '#d97706'
+                : '#16a34a',
           }))
           .sort((a: any, b: any) => b.pct - a.pct); // highest risk first
         setZones(mapped);
@@ -191,8 +191,8 @@ export default function LandingPage() {
           </h1>
 
           <p className={styles.heroSub}>
-            An AI-powered early warning system fusing NASA satellite data, LightGBM machine learning,
-            and human-gated SMS alerts to protect communities across Chikwawa District from devastating floods.
+            An AI-powered early warning system
+            aimed at protecting communities across Chikwawa District from devastating floods.
           </p>
 
           <div className={styles.heroCtas}>
@@ -275,10 +275,10 @@ export default function LandingPage() {
           {[
             { icon: <Satellite size={18} />, label: 'GEE Satellite' },
             { icon: <Droplets size={18} />, label: 'Sensor Ingest' },
-            { icon: <Zap size={18} />,       label: 'LightGBM Model' },
+            { icon: <Zap size={18} />, label: 'LightGBM Model' },
             { icon: <AlertTriangle size={18} />, label: 'Risk Score' },
-            { icon: <Bell size={18} />,      label: 'Human Approval' },
-            { icon: <Users size={18} />,     label: 'SMS Dispatch' },
+            { icon: <Bell size={18} />, label: 'Human Approval' },
+            { icon: <Users size={18} />, label: 'SMS Dispatch' },
           ].map((step, i, arr) => (
             <div key={i} className={styles.pipelineStep}>
               <div className={styles.pipelineIcon}>{step.icon}</div>

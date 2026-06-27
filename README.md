@@ -1,123 +1,97 @@
-# Chikwawa Flood Prediction
+# Chikwawa Flood Prediction System
 
-A machine learning and geospatial analytics project focused on building a localized flood risk prediction pipeline for **Chikwawa District, Malawi**.
+An AI-powered, full-stack early warning system designed for real-time flood risk prediction in **Chikwawa District, Malawi**.
 
-The project combines boundary data, satellite and environmental feature extraction workflows, and model experimentation in notebooks to support early warning and disaster preparedness efforts.
-
-## Project Goals
-
-- Build a district-specific flood risk prediction workflow for Chikwawa.
-- Combine hydrological, meteorological, and geospatial factors into usable model features.
-- Produce processed datasets for modeling and downstream evaluation.
-- Support interpretable, practical outputs for flood early warning use cases.
+What started as an exploratory data science project has evolved into a fully functional, real-time application. It combines Earth Engine satellite ingestion, machine learning, and a modern web dashboard to provide the Chikwawa District Council for Disaster Management (DCCM) with actionable, human-approved SMS alerts.
 
 ## Repository Structure
 
 ```text
 Chikwawa-Flood-Prediction/
-├── data/
-│   ├── raw/
-│   │   └── chikwawa_boundary.geojson
-│   └── processed/
-│       ├── chikwawa_flood_dataset.csv
-│       └── processed_data.csv
-├── models/
-│   └── FLOOD_PREDICTION.ipynb
-├── notebooks/
-│   ├── 01_fetch_district_boundaries.ipynb
-│   ├── 02_earth_engine_authentication.ipynb
-│   ├── 03B_topography_fixed_90m.ipynb
-│   ├── 04B_satellite_rainfall_and_radar_fixed.ipynb
-│   ├── 04C_multi_event_collection.ipynb
-│   ├── 05_feature_extraction_to_csv.ipynb
-│   ├── SYNTHETIC.ipynb
-│   └── cache/
-├── doc_text.txt
-├── requirements.txt
-└── README.md
+├── backend/                  # FastAPI server, Celery scheduler, ML pipeline, and DB
+├── frontend/                 # Next.js interactive dashboard & alert management UI
+├── notebooks/                # Jupyter notebooks for data extraction, EDA, and model training
+├── models/                   # Serialized ML models (e.g., XGBoost) used by the backend
+├── data/                     # Raw and processed datasets for historical analysis
+├── geospatial/               # Static GeoJSON and DEM assets
+├── docker-compose.yml        # Orchestration for backend services (Redis, PostgreSQL)
+└── README.md                 # Project documentation
 ```
 
-## Data Assets
+## System Architecture
 
-- `data/raw/chikwawa_boundary.geojson`: Base district boundary used for clipping, masking, and regional analysis.
-- `data/processed/chikwawa_flood_dataset.csv`: Engineered dataset for flood-related analysis/modeling.
-- `data/processed/processed_data.csv`: Additional processed output used during experimentation.
+The project consists of three main components:
 
-## Notebook Pipeline
+### 1. Data Science & ML Pipeline (`notebooks/`)
+The foundational notebooks where data is extracted from Google Earth Engine (GPM, Sentinel, SMAP) and the DAHITI API. Contains the Exploratory Data Analysis (EDA) and the training scripts for the core machine learning models (LightGBM/XGBoost) that predict flood risk based on hydrological and geospatial features.
 
-The notebooks are organized as a practical workflow:
+### 2. Backend API (`backend/`)
+A **Python/FastAPI** service responsible for real-time operations:
+- **Data Ingestion**: A Celery task queue wakes up every 6 hours to fetch live satellite data from Earth Engine and river gauge levels from DAHITI.
+- **Prediction Engine**: Runs the incoming data through the serialized ML models to compute live risk probabilities for Chikwawa's Traditional Authorities (TAs).
+- **Alerting**: Monitors risk thresholds and can dispatch SMS alerts via the Airtel Malawi API (subject to human approval).
 
-1. `notebooks/01_fetch_district_boundaries.ipynb`  
-   Fetches and prepares district boundary geometry.
-2. `notebooks/02_earth_engine_authentication.ipynb`  
-   Handles Google Earth Engine authentication and access setup.
-3. `notebooks/03B_topography_fixed_90m.ipynb`  
-   Extracts topographic/elevation-related predictors.
-4. `notebooks/04B_satellite_rainfall_and_radar_fixed.ipynb`  
-   Builds rainfall/radar-based geospatial signals.
-5. `notebooks/04C_multi_event_collection.ipynb`  
-   Collects and aligns multiple flood-related event observations.
-6. `notebooks/05_feature_extraction_to_csv.ipynb`  
-   Produces tabular feature outputs for modeling.
-7. `models/FLOOD_PREDICTION.ipynb`  
-   Model experimentation/training/evaluation notebook.
-
-## Requirements
-
-Install Python dependencies from `requirements.txt`:
-
-```bash
-pip install -r requirements.txt
-```
-
-Current dependencies:
-
-- `geopandas`
-- `shapely`
-- `osmnx`
-- `earthengine-api`
-- `geemap`
-- `rasterio`
-- `xarray`
-- `jupyter`
+### 3. Frontend Dashboard (`frontend/`)
+A **Next.js (React)** web application that serves as the command center for DCCM officials:
+- **Live Monitoring**: Visualizes real-time flood risk on an interactive Leaflet map.
+- **Trends & Analytics**: Displays historical rainfall and river level charts.
+- **Alert Management**: Allows authorized personnel to review high-risk predictions and approve SMS dispatches to village headmen.
 
 ## Getting Started
 
-1. Clone this repository.
-2. Create and activate a Python virtual environment.
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Launch Jupyter:
-   ```bash
-   jupyter notebook
-   ```
-5. Run notebooks in workflow order (starting from `01_...`).
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- PostgreSQL & PostGIS
+- Redis (for the Celery task queue)
+- Google Earth Engine Service Account
 
-## Suggested Environment Setup (Windows PowerShell)
+### Running the Backend
 
-```powershell
+We recommend using Docker Compose to spin up the database and Redis, or you can run everything locally.
+
+```bash
+cd backend
+python -m venv .venv
+# Activate virtual environment (Windows)
+.venv\Scripts\Activate.ps1 
+# On Linux/Mac: source .venv/bin/activate
+pip install -r requirements.txt
+
+# Start the FastAPI server
+uvicorn app.main:app --reload
+
+# Start the Celery worker (in a separate terminal)
+celery -A scheduler.celery_app worker --loglevel=info
+
+# Start the Celery beat scheduler (in another terminal)
+celery -A scheduler.celery_app beat --loglevel=info
+```
+*Note: Ensure you have configured your `.env` file based on `.env.example` in the `backend/` directory.*
+
+### Running the Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser. Default admin credentials can be found in the frontend documentation.
+
+### Exploring the Notebooks
+
+To explore the data science workflow or retrain the models:
+```bash
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 jupyter notebook
 ```
+Run the notebooks in `notebooks/` sequentially, starting from `01_fetch_district_boundaries.ipynb`.
 
-## Outputs
+## Documentation
 
-Typical outputs include:
+- Detailed backend architecture and data flow can be found in [`backend_architecture.md`](./backend_architecture.md).
+- Further frontend documentation is located in [`frontend/README.md`](./frontend/README.md).
+- Background research and the original project proposal are in `doc_text.txt` and `FINAL_REPORT_CHIKWAWA_FLOOD_PREDICTION.docx`.
 
-- Processed geospatial/tabular flood datasets in `data/processed/`
-- Intermediate cached responses in `notebooks/cache/`
-- Modeling experiments and results in `models/FLOOD_PREDICTION.ipynb`
-
-## Notes
-
-- Earth Engine-based notebooks require authenticated access and internet connectivity.
-- Some notebooks depend on artifacts generated by earlier steps.
-- Large geospatial processing tasks may require extra runtime and memory.
-
-## Research Context
-
-This repository supports a flood risk prediction study focused on Chikwawa District. The broader proposal and background are captured in `doc_text.txt`.
