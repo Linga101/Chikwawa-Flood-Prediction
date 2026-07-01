@@ -158,12 +158,12 @@ export default function LandingPage() {
         <div className={styles.navInner}>
           <div className={styles.navBrand}>
             <div className={styles.navLogo}>
-              <ShieldAlert size={20} color="white" />
+              <img src="/icon.png" alt="Chikwawa FRS" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 8 }} />
             </div>
             <span>Chikwawa <strong>FRS</strong></span>
           </div>
           <div className={styles.navLinks}>
-            <a href="#features">Features</a>
+
             <a href="#stats">Impact</a>
             <a href="#login" className={styles.navCta}>Access System →</a>
           </div>
@@ -246,48 +246,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── FEATURES ────────────────────────────────────────────── */}
-      <section id="features" className={styles.features}>
-        <div className={styles.sectionLabel}>
-          <BarChart2 size={14} /> How It Works
-        </div>
-        <h2 className={styles.sectionTitle}>Built on Real Science</h2>
-        <p className={styles.sectionSub}>
-          Every prediction is a fusion of satellite observations, terrain data, and a machine learning model
-          trained on historical flood events in the Shire River basin.
-        </p>
 
-        <div className={styles.featureGrid}>
-          {features.map((f, i) => (
-            <div
-              key={i}
-              className={`${styles.featureCard} ${activeFeature === i ? styles.featureCardActive : ''}`}
-              onMouseEnter={() => setActiveFeature(i)}
-            >
-              <div className={styles.featureIcon}>{f.icon}</div>
-              <h3 className={styles.featureTitle}>{f.title}</h3>
-              <p className={styles.featureDesc}>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Pipeline flow diagram */}
-        <div className={styles.pipeline}>
-          {[
-            { icon: <Satellite size={18} />, label: 'GEE Satellite' },
-            { icon: <Droplets size={18} />, label: 'Sensor Ingest' },
-            { icon: <Zap size={18} />, label: 'LightGBM Model' },
-            { icon: <AlertTriangle size={18} />, label: 'Risk Score' },
-            { icon: <Bell size={18} />, label: 'Human Approval' },
-            { icon: <Users size={18} />, label: 'SMS Dispatch' },
-          ].map((step, i, arr) => (
-            <div key={i} className={styles.pipelineStep}>
-              <div className={styles.pipelineIcon}>{step.icon}</div>
-              <span>{step.label}</span>
-              {i < arr.length - 1 && <div className={styles.pipelineArrow}><ArrowRight size={14} /></div>}
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ── LOGIN ───────────────────────────────────────────────── */}
       <section id="login" className={styles.loginSection}>
@@ -319,7 +278,7 @@ export default function LandingPage() {
         <div className={styles.loginCard}>
           <div className={styles.loginCardHeader}>
             <div className={styles.loginCardLogo}>
-              <ShieldAlert size={28} color="white" />
+              <img src="/icon.png" alt="Chikwawa FRS" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <h3>Chikwawa FRS</h3>
             <p>Flood Risk Surveillance System</p>
@@ -396,11 +355,11 @@ export default function LandingPage() {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
-            <ShieldAlert size={16} />
+            <img src="/icon.png" alt="Chikwawa FRS" style={{ width: 28, height: 28, objectFit: 'contain' }} />
             <span>Chikwawa Flood Risk Surveillance System</span>
           </div>
           <p className={styles.footerSub}>
-            Developed in partnership with Chikwawa District Council for Disaster Management (DCCM), Malawi · {new Date().getFullYear()}
+            Developed by Mzuni Data Science students · {new Date().getFullYear()}
           </p>
         </div>
       </footer>

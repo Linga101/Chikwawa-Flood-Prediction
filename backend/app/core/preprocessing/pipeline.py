@@ -11,8 +11,8 @@ def run_preprocessing_pipeline(raw_data: dict, db: Session) -> pd.DataFrame:
     # 1. Resample all sources to the 1km grid
     grid_df = resample_to_grid(raw_data, "geospatial/chikwawa_grid.geojson")
     
-    # 2. Apply Path A logic (Incorporate 7-day rainfall accumulation)
-    grid_df = apply_path_a_logic(grid_df, db)
+    # 2. Apply Path A logic (Incorporate 7-day rainfall accumulation + soil amplification)
+    grid_df = apply_path_a_logic(grid_df, db, raw_data)
     
     # 3. Normalize features using the trained scaler
     # Note: We return raw + scaled if needed, but here we just return the final input row

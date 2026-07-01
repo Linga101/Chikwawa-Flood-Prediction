@@ -30,11 +30,11 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <img 
-          src="/logo.svg" 
+          src="/icon.png" 
           alt="Chikwawa FRS Logo" 
-          width={32} 
-          height={32} 
-          style={{ display: 'block', flexShrink: 0 }}
+          width={40} 
+          height={40} 
+          style={{ display: 'block', flexShrink: 0, objectFit: 'contain' }}
         />
         <div>
           <div className="logo-text">Chikwawa FRS</div>
