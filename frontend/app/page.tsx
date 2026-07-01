@@ -199,9 +199,6 @@ export default function LandingPage() {
             <a href="#login" className={styles.ctaPrimary}>
               Access Dashboard <ArrowRight size={18} />
             </a>
-            <a href="#features" className={styles.ctaSecondary}>
-              Learn More <ChevronDown size={18} />
-            </a>
           </div>
 
           {/* Live mini-dashboard preview */}

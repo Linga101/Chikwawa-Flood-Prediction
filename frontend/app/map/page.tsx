@@ -63,10 +63,11 @@ export default function MapPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 20 }}
+           className="map-page-grid">
         {/* Map */}
         <div>
-          <div className="map-container" style={{ height: 540 }}>
+          <div className="map-container map-responsive-height">
             <FloodMap activeLayers={activeLayers} />
           </div>
         </div>

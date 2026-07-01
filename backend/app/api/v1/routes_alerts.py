@@ -86,6 +86,49 @@ async def delete_subscriber(
     db.commit()
     return {"message": "Subscriber removed"}
 
+class BulkSubscriberCreate(BaseModel):
+    contacts: List[SubscriberCreate]
+
+@router.post("/subscribers/bulk")
+async def bulk_import_subscribers(
+    payload: BulkSubscriberCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_admin_user)
+):
+    """
+    Bulk-import subscribers from an Excel sheet upload.
+    Skips duplicates (same phone number) silently.
+    Returns counts of added vs skipped entries.
+    """
+    added = 0
+    skipped = 0
+    errors = []
+
+    for entry in payload.contacts:
+        phone = (entry.phone_number or "").strip()
+        ta    = (entry.ta_area or "").strip()
+
+        if not phone or not ta:
+            errors.append(f"Skipped row with missing phone or TA: {phone!r} / {ta!r}")
+            skipped += 1
+            continue
+
+        existing = db.query(Subscriber).filter(Subscriber.phone_number == phone).first()
+        if existing:
+            skipped += 1
+            continue
+
+        db.add(Subscriber(phone_number=phone, ta_area=ta, is_active=True))
+        added += 1
+
+    db.commit()
+    return {
+        "added":   added,
+        "skipped": skipped,
+        "errors":  errors,
+        "message": f"Import complete — {added} added, {skipped} skipped."
+    }
+
 @router.post("/alerts/broadcast")
 async def broadcast_manual_alert(
     payload: BroadcastCreate,

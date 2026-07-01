@@ -348,7 +348,7 @@ img { max-width: 100%; display: block; }
     left: -260px; 
     bottom: 0; 
     width: 240px;
-    z-index: 1000;
+    z-index: 9999;
     transition: left 0.3s ease;
   }
   .sidebar-wrapper.open { left: 0; }
@@ -358,7 +358,7 @@ img { max-width: 100%; display: block; }
     position: fixed; 
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.5);
-    z-index: 990;
+    z-index: 9998;
   }
   
   .mobile-header {
@@ -383,9 +383,86 @@ img { max-width: 100%; display: block; }
     color: var(--text-primary); 
   }
   
-  .dashboard-grid { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: 1fr; }
   
   /* Make topbar responsive */
   .topbar { flex-direction: column; align-items: flex-start; gap: 12px; }
   .topbar-actions { width: 100%; justify-content: flex-start; }
+}
+
+/* ============================================================
+   RESPONSIVE UTILITY CLASSES — Mobile-first layout helpers
+   Applied to pages: /map, /alerts, /risk, /contacts
+   ============================================================ */
+
+/* Two-column desktop → single column mobile */
+.two-col-responsive {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Risk page gauge has narrower fixed column */
+.two-col-responsive.risk-grid {
+  grid-template-columns: 280px 1fr;
+}
+
+/* Map page: map takes full width, sidebar below */
+.map-page-grid {
+  grid-template-columns: 1fr 260px !important;
+}
+
+/* Map responsive height — taller on desktop, shorter on mobile */
+.map-responsive-height {
+  height: 540px;
+}
+
+@media (max-width: 768px) {
+  /* All two-column grids collapse to single column */
+  .two-col-responsive,
+  .two-col-responsive.risk-grid,
+  .map-page-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+
+  /* Map shorter on mobile so page isn't just a map */
+  .map-responsive-height {
+    height: 320px;
+  }
+
+  /* Alerts filter bar: wrap neatly, search goes full-width */
+  .alerts-filter-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Search box fills available space on mobile */
+  .alerts-search-input {
+    min-width: unset !important;
+    width: 100%;
+  }
+
+  /* Prevent alert rows from overflowing — allow Dismiss to wrap below */
+  .alert-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Contacts table: shrink font slightly, allow horizontal scroll within card */
+  .contacts-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Risk page TA tab buttons — allow full-width wrapping */
+  .risk-tab-bar {
+    flex-wrap: wrap;
+  }
+
+  /* Risk gauge — constrain width on mobile so it doesn't overflow */
+  .risk-gauge-card {
+    width: 100%;
+  }
 }

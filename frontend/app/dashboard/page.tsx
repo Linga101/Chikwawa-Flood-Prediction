@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
-import RiskZonesPanel from '@/components/dashboard/RiskZonesPanel';
 import RainfallChart from '@/components/charts/RainfallChart';
 import { useAuth } from '@/lib/AuthContext';
 import { 
@@ -325,31 +324,68 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 13 }}>No recent dispatches</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-                {alerts.map(alert => (
-                  <div key={alert.id} style={{
-                    padding: '12px', borderRadius: 8,
-                    background: 'var(--bg-main)', border: '1px solid var(--border)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
-                        {alert.location}
+              <>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, paddingRight: 4 }}>
+                  {alerts.slice(0, 4).map(alert => (
+                    <div key={alert.id} style={{
+                      padding: '12px', borderRadius: 8,
+                      background: 'var(--bg-main)', border: '1px solid var(--border)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+                          {alert.location}
+                        </div>
+                        <span className={`badge badge-${alert.level.toLowerCase()}`} style={{ fontSize: 10, padding: '2px 6px' }}>
+                          {alert.level}
+                        </span>
                       </div>
-                      <span className={`badge badge-${alert.level.toLowerCase()}`} style={{ fontSize: 10, padding: '2px 6px' }}>
-                        {alert.level}
-                      </span>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 6 }}>
+                        {alert.message}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {alert.time}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.4, marginBottom: 6 }}>
-                      {alert.message}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {alert.time}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+
+                {/* See More link — only shown when there are more than 4 alerts */}
+                {alerts.length > 4 && (
+                  <a
+                    href="/alerts"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      marginTop: 14,
+                      padding: '9px 0',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--brand-blue)',
+                      textDecoration: 'none',
+                      background: 'var(--bg-primary)',
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(37,99,235,0.06)';
+                      (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--brand-blue)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLAnchorElement).style.background = 'var(--bg-primary)';
+                      (e.currentTarget as HTMLAnchorElement).style.borderColor = 'var(--border)';
+                    }}
+                  >
+                    <BellRing size={13} />
+                    See all {alerts.length} dispatches — Real-time Alerts →
+                  </a>
+                )}
+              </>
             )}
           </div>
+
         </div>
       </div>
 

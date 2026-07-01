@@ -7,10 +7,10 @@ import L from 'leaflet';
 
 // Fallback static data — used only if the API call fails
 const TA_ZONES_FALLBACK = [
-  { name: 'TA Ngabu',      lat: -16.27, lng: 34.87, prob: 0.0 },
-  { name: 'TA Makhwira',   lat: -16.05, lng: 34.93, prob: 0.0 },
-  { name: 'TA Lundu',      lat: -16.45, lng: 34.75, prob: 0.0 },
-  { name: 'TA Kasisi',     lat: -15.95, lng: 34.80, prob: 0.0 },
+  { name: 'TA Ngabu', lat: -16.27, lng: 34.87, prob: 0.0 },
+  { name: 'TA Makhwira', lat: -16.05, lng: 34.93, prob: 0.0 },
+  { name: 'TA Lundu', lat: -16.45, lng: 34.75, prob: 0.0 },
+  { name: 'TA Kasisi', lat: -15.95, lng: 34.80, prob: 0.0 },
   { name: 'TA Chapananga', lat: -16.15, lng: 34.65, prob: 0.0 },
 ];
 
@@ -62,9 +62,9 @@ const CHIKWAWA_FIT_BOUNDS: L.LatLngBoundsLiteral = [
 ];
 
 function classifyRisk(prob: number) {
-  if (prob >= 0.6) return { level: 'HIGH',   color: '#dc2626', fillColor: '#dc2626' };
+  if (prob >= 0.6) return { level: 'HIGH', color: '#dc2626', fillColor: '#dc2626' };
   if (prob >= 0.3) return { level: 'MEDIUM', color: '#d97706', fillColor: '#d97706' };
-  return               { level: 'LOW',    color: '#16a34a', fillColor: '#16a34a' };
+  return { level: 'LOW', color: '#16a34a', fillColor: '#16a34a' };
 }
 
 function FitAndLockBounds() {
@@ -109,10 +109,10 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
       .then(data => {
         if (data?.features?.length > 0) {
           const mapped: ZoneData[] = data.features.map((f: any) => ({
-            name:        f.properties.name,
-            lat:         f.geometry.coordinates[1],  // GeoJSON is [lng, lat]
-            lng:         f.geometry.coordinates[0],
-            prob:        f.properties.probability ?? 0,
+            name: f.properties.name,
+            lat: f.geometry.coordinates[1],  // GeoJSON is [lng, lat]
+            lng: f.geometry.coordinates[0],
+            prob: f.properties.probability ?? 0,
             description: f.properties.description ?? '',
           }));
           setZones(mapped);
@@ -135,7 +135,7 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
               }));
             }
           })
-          .catch(() => {}); // final silent fallback
+          .catch(() => { }); // final silent fallback
       });
   }, []);
 
@@ -237,7 +237,7 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
                   href="/risk"
                   style={{ display: 'block', marginTop: 10, fontSize: 11, color: '#2563eb' }}
                 >
-                  → View 5-Factor Risk Assessment
+                  → View 9-Factor Risk Assessment
                 </a>
               </div>
             </Popup>

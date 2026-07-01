@@ -83,7 +83,7 @@ export default function RiskPage() {
       </div>
 
       {/* TA Selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="risk-tab-bar" style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
         {TA_ZONES.map(g => (
           <button
             key={g}
@@ -104,10 +104,10 @@ export default function RiskPage() {
           Could not load assessment data. Make sure the backend is running.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, alignItems: 'start' }}>
+        <div className="two-col-responsive risk-grid">
 
           {/* ── Composite Score Gauge ─────────────────────────────────────── */}
-          <div className="card" style={{
+          <div className="card risk-gauge-card" style={{
             textAlign: 'center', display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 16,
           }}>

@@ -187,12 +187,12 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 }}>
+      <div className="two-col-responsive">
         
         {/* LEFT COL: Live Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="alerts-filter-bar" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <button className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter('ALL')}>
               All <span style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 999, padding: '1px 7px', fontSize: 11, marginLeft: 4 }}>{visible.length}</span>
             </button>
@@ -221,6 +221,7 @@ export default function AlertsPage() {
                 placeholder="Search by zone, message..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                className="alerts-search-input"
                 style={{
                   padding: '8px 14px 8px 32px', borderRadius: 8,
                   border: `1px solid ${search ? 'var(--brand-blue)' : 'var(--border)'}`,
@@ -253,7 +254,7 @@ export default function AlertsPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {filtered.map((alert, i) => (
-                  <div key={alert.id} style={{
+                  <div key={alert.id} className="alert-row" style={{
                     display: 'flex', gap: 14, padding: '14px 20px',
                     borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
                     background: alert.read ? 'transparent' : 'rgba(37,99,235,0.04)',
