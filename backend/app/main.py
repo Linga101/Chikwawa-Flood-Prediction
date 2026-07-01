@@ -6,6 +6,15 @@ from app.api.v1 import routes_auth, routes_alerts, routes_websocket, routes_risk
 
 # Import models to ensure they are registered with SQLAlchemy
 from app.db.models.HistoricalEvent import HistoricalEvent
+from sqlalchemy import text
+
+# Enable PostGIS extension before creating tables
+try:
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        conn.commit()
+except Exception as e:
+    print(f"Failed to create postgis extension automatically (may already exist or lack permissions): {e}")
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
