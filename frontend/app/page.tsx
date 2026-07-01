@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
+import { API_URL } from '@/lib/config';
 import {
   ShieldAlert, Activity, Map, Bell, BarChart2,
   Lock, User, ArrowRight, Droplets, Satellite,
@@ -87,7 +88,7 @@ export default function LandingPage() {
       const form = new URLSearchParams();
       form.append('username', username);
       form.append('password', password);
-      const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+      const res = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: form,
@@ -123,7 +124,7 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchPredictions = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/v1/risk/latest-risk');
+        const res = await fetch(`${API_URL}/api/v1/risk/latest-risk`);
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();
         // data is array of { grid_id, probability, risk_level, ... }

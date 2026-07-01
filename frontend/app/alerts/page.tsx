@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/lib/AuthContext';
+import { API_URL, WS_URL } from '@/lib/config';
 import { 
   AlertOctagon, AlertTriangle, CheckCircle2, 
   Search, Send, Clock, Radio, MessageSquare, MapPin, Activity
@@ -46,7 +47,7 @@ export default function AlertsPage() {
   const riskColor    = currentLevel === 'HIGH' ? 'var(--risk-high)' : currentLevel === 'MEDIUM' ? 'var(--risk-med)' : 'var(--risk-low)';
 
   const fetchAlerts = () => {
-    authFetch('http://localhost:8000/api/v1/alerts')
+    authFetch(`${API_URL}/api/v1/alerts`)
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -67,7 +68,7 @@ export default function AlertsPage() {
     fetchAlerts();
 
     // Fetch live risk probabilities for all TA zones
-    fetch('http://localhost:8000/api/v1/risk/latest-risk')
+    fetch(`${API_URL}/api/v1/risk/latest-risk`)
       .then(r => r.json())
       .then((data: any[]) => {
         if (Array.isArray(data)) {
@@ -78,7 +79,7 @@ export default function AlertsPage() {
       })
       .catch(() => {});
 
-    const ws = new WebSocket('ws://localhost:8000/api/v1/live-feed');
+    const ws = new WebSocket(`${WS_URL}/api/v1/live-feed`);
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
@@ -106,7 +107,7 @@ export default function AlertsPage() {
   const dismissAlert = async (id: number) => {
     if (window.confirm("Are you sure you want to permanently delete this alert? This action cannot be undone.")) {
       try {
-        const res = await authFetch(`http://localhost:8000/api/v1/alerts/${id}`, {
+        const res = await authFetch(`${API_URL}/api/v1/alerts/${id}`, {
           method: 'DELETE',
         });
         if (res.ok) {
@@ -133,7 +134,7 @@ export default function AlertsPage() {
       const prob  = zoneProbMap[targetTA] ?? 0;
       const level = classifyRisk(prob);
 
-      const res = await authFetch('http://localhost:8000/api/v1/alerts/broadcast', {
+      const res = await authFetch(`${API_URL}/api/v1/alerts/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ta_area: targetTA, message: broadcastMsg, risk_level: level }),

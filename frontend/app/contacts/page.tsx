@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import { useAuth } from '@/lib/AuthContext';
+import { API_URL } from '@/lib/config';
 import {
   Users, UserPlus, Phone, MapPin, Trash2, ShieldCheck,
   Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, X
@@ -45,7 +46,7 @@ export default function ContactsPage() {
 
   const fetchSubscribers = async () => {
     try {
-      const res = await authFetch('http://localhost:8000/api/v1/subscribers');
+      const res = await authFetch(`${API_URL}/api/v1/subscribers`);
       if (res.ok) {
         const data = await res.json();
         setSubscribers(data);
@@ -138,7 +139,7 @@ export default function ContactsPage() {
         return;
       }
 
-      const res = await authFetch('http://localhost:8000/api/v1/subscribers/bulk', {
+      const res = await authFetch(`${API_URL}/api/v1/subscribers/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contacts }),
@@ -177,7 +178,7 @@ export default function ContactsPage() {
     setSubmitSuccess(false);
     setIsSubmitting(true);
     try {
-      const res = await authFetch('http://localhost:8000/api/v1/subscribers', {
+      const res = await authFetch(`${API_URL}/api/v1/subscribers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_number: phone, ta_area: taArea }),
@@ -199,7 +200,7 @@ export default function ContactsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to remove this contact?')) return;
     try {
-      const res = await authFetch(`http://localhost:8000/api/v1/subscribers/${id}`, {
+      const res = await authFetch(`${API_URL}/api/v1/subscribers/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) setSubscribers(prev => prev.filter(sub => sub.id !== id));

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import AppShell from '@/components/layout/AppShell';
 import { useState, useEffect } from 'react';
 import { Map as MapIcon, ShieldAlert, Waves } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 // Leaflet must be dynamically imported (no SSR) as it uses browser APIs
 const FloodMap = dynamic(() => import('@/components/map/FloodMap'), { ssr: false, loading: () => (
@@ -33,7 +34,7 @@ export default function MapPage() {
 
   // Fetch live risk data and compute zone counts
   useEffect(() => {
-    fetch('http://localhost:8000/api/v1/risk/latest-risk')
+    fetch(`${API_URL}/api/v1/risk/latest-risk`)
       .then(r => r.json())
       .then((data: any[]) => {
         if (Array.isArray(data)) {

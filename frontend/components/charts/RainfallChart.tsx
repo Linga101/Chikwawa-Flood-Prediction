@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
+import { API_URL } from '@/lib/config';
 
 interface DayData {
   date: string;
@@ -40,7 +41,7 @@ export default function RainfallChart({ window = 7 }: RainfallChartProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/api/v1/charts/rainfall-trends?window=${window}`)
+    fetch(`${API_URL}/api/v1/charts/rainfall-trends?window=${window}`)
       .then(r => r.json())
       .then((d: DayData[]) => {
         // Format dates for display

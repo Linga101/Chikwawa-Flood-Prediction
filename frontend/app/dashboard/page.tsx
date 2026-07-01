@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import RainfallChart from '@/components/charts/RainfallChart';
 import { useAuth } from '@/lib/AuthContext';
+import { API_URL, WS_URL } from '@/lib/config';
 import { 
   Activity, BellRing, BarChart2, AlertOctagon, 
   AlertTriangle, CheckCircle2, TrendingDown, Map as MapIcon,
@@ -47,7 +48,7 @@ export default function DashboardPage() {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState<{ok: boolean; msg: string} | null>(null);
 
-  const API = 'http://localhost:8000/api/v1';
+  const API = `${API_URL}/api/v1`;
 
   // --- Load risk + activity data ---
   const loadRiskData = () => {
@@ -106,7 +107,7 @@ export default function DashboardPage() {
 
     const connectWs = () => {
       if (isCleanedUp) return;
-      ws = new WebSocket(`ws://localhost:8000/api/v1/live-feed`);
+      ws = new WebSocket(`${WS_URL}/api/v1/live-feed`);
 
       ws.onopen = () => {
         setLastSync(new Date().toLocaleTimeString());

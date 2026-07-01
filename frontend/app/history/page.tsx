@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import RainfallChart from '@/components/charts/RainfallChart';
 import { CloudRain, Waves, History as HistoryIcon, Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 interface RiverStatus {
   river_name: string;
@@ -47,7 +48,7 @@ export default function HistoryPage() {
   });
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/v1/charts/river-levels')
+    fetch(`${API_URL}/api/v1/charts/river-levels`)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
       .then(setRiver)
       .catch(() => setRiver({
@@ -62,7 +63,7 @@ export default function HistoryPage() {
   }, []);
 
   const fetchEvents = () => {
-    fetch('http://localhost:8000/api/v1/charts/historical-events')
+    fetch(`${API_URL}/api/v1/charts/historical-events`)
       .then(r => r.json())
       .then(data => setEvents(data))
       .catch(console.error);
@@ -81,8 +82,8 @@ export default function HistoryPage() {
       };
       
       const url = editingEventId 
-        ? `http://localhost:8000/api/v1/charts/historical-events/${editingEventId}`
-        : 'http://localhost:8000/api/v1/charts/historical-events';
+        ? `${API_URL}/api/v1/charts/historical-events/${editingEventId}`
+        : `${API_URL}/api/v1/charts/historical-events`;
       
       const method = editingEventId ? 'PUT' : 'POST';
 
@@ -118,7 +119,7 @@ export default function HistoryPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/charts/historical-events/${id}`, {
+      const res = await fetch(`${API_URL}/api/v1/charts/historical-events/${id}`, {
         method: 'DELETE'
       });
       if (res.ok) {

@@ -7,6 +7,7 @@ import {
   Navigation, ArrowDownToLine, CloudRain, Droplets,
   Satellite, Database, Zap
 } from 'lucide-react';
+import { API_URL } from '@/lib/config';
 
 interface Factor {
   label:               string;
@@ -54,7 +55,7 @@ export default function RiskPage() {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`http://localhost:8000/api/v1/risk/${encodeURIComponent(selectedGrid)}/assessment`)
+    fetch(`${API_URL}/api/v1/risk/${encodeURIComponent(selectedGrid)}/assessment`)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
       .then(setAssessment)
       .catch(() => setAssessment(null))

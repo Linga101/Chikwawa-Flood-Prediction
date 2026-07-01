@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Circle, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { API_URL } from '@/lib/config';
 
 // Fallback static data — used only if the API call fails
 const TA_ZONES_FALLBACK = [
@@ -101,7 +102,7 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
   useEffect(() => {
     // Fetch enriched GeoJSON from the map-data endpoint
     // This now returns Point features with live probability data
-    fetch('http://localhost:8000/api/v1/map-data')
+    fetch(`${API_URL}/api/v1/map-data`)
       .then(r => {
         if (!r.ok) throw new Error(`API returned ${r.status}`);
         return r.json();
@@ -125,7 +126,7 @@ export default function FloodMap({ activeLayers }: FloodMapProps) {
         setError('Could not load live data — showing cached positions.');
         setLoading(false);
         // Fall back to latest-risk endpoint for at least the probabilities
-        fetch('http://localhost:8000/api/v1/risk/latest-risk')
+        fetch(`${API_URL}/api/v1/risk/latest-risk`)
           .then(r => r.json())
           .then(data => {
             if (data?.length > 0) {
