@@ -16,9 +16,9 @@ def fetch_latest_rainfall():
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(hours=6)
     
-    dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_V06') \
+    dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_V07') \
         .filterDate(int(start_date.timestamp() * 1000), int(end_date.timestamp() * 1000)) \
-        .select('precipitationCal')
+        .select('precipitation')
     
     # Get the mean or sum over the region
     stats = dataset.mean().reduceRegion(
@@ -27,4 +27,4 @@ def fetch_latest_rainfall():
         scale=10000 # GPM resolution is approx 10km
     ).getInfo()
     
-    return stats.get('precipitationCal', 0.0)
+    return stats.get('precipitation', 0.0)
