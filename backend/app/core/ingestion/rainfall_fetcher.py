@@ -21,6 +21,10 @@ def fetch_latest_rainfall() -> dict:
         .filterDate(int(start_date.timestamp() * 1000), int(end_date.timestamp() * 1000)) \
         .select('precipitation')
     
+    if dataset.size().getInfo() == 0:
+        return {}
+
+    
     stats = dataset.mean().reduceRegions(
         collection=fc,
         reducer=ee.Reducer.mean(),
