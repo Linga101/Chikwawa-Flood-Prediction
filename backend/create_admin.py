@@ -7,14 +7,18 @@ async def seed_admin():
     db = SessionLocal()
     try:
         admin_username = "admin"
-        admin_password = "password123"  # Change this in production
+        admin_password = "dccm2026"  
         
         user = db.query(User).filter(User.username == admin_username).first()
+        hashed_password = auth.get_password_hash(admin_password)
+        
         if user:
-            print(f"Admin user '{admin_username}' already exists.")
+            print(f"Admin user '{admin_username}' already exists. Updating password...")
+            user.hashed_password = hashed_password
+            db.commit()
+            print(f"Successfully updated admin user: {admin_username} / {admin_password}")
             return
 
-        hashed_password = auth.get_password_hash(admin_password)
         new_admin = User(
             username=admin_username,
             hashed_password=hashed_password,
