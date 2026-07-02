@@ -42,10 +42,14 @@ TA_PROFILES = {
 
 
 def _latest_sensor(db: Session, source: str, grid_id: str):
-    """Return the most-recent SensorReading for (source, grid_id), or None."""
+    """Return the most-recent SensorReading for (source, grid_id), or fallback to district-wide."""
+    from sqlalchemy import or_
     return (
         db.query(SensorReading)
-        .filter(SensorReading.source == source, SensorReading.grid_id == grid_id)
+        .filter(
+            SensorReading.source == source, 
+            or_(SensorReading.grid_id == grid_id, SensorReading.grid_id.is_(None))
+        )
         .order_by(SensorReading.timestamp.desc())
         .first()
     )
@@ -84,7 +88,7 @@ def compute_5_factor_assessment(db: Session, grid_id: str) -> dict:
     rain_r      = _latest_sensor(db, "GPM",    grid_id)
     soil_r      = _latest_sensor(db, "SMAP",   grid_id)
     river_r     = _latest_sensor(db, "DAHITI", grid_id) or _latest_sensor_any(db, "DAHITI")
-    ndvi_r      = _latest_sensor(db, "NDVI",   grid_id)   # stored if available
+    ndvi_r      = _latest_sensor(db, "Sentinel-2",   grid_id)   # stored if available
 
     rainfall_mm     = rain_r.value  if rain_r  else 0.0
     soil_moisture   = soil_r.value  if soil_r  else 0.0
