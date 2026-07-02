@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 
 from app.db.database import engine, Base
 from app.api.v1 import routes_auth, routes_alerts, routes_websocket, routes_risk, routes_map, routes_charts
@@ -8,17 +7,7 @@ from app.api.v1 import routes_auth, routes_alerts, routes_websocket, routes_risk
 # Import models to ensure they are registered with SQLAlchemy
 from app.db.models.HistoricalEvent import HistoricalEvent
 
-# Enable PostGIS extension if available (required for the geometry column in SensorReading).
-# This is idempotent — safe to run on every startup whether or not it was already enabled.
-try:
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
-        conn.commit()
-    print("[startup] PostGIS extension enabled.")
-except Exception as e:
-    print(f"[startup] PostGIS not available — geometry columns will be skipped: {e}")
-
-# Create database tables
+# Create all database tables on startup
 Base.metadata.create_all(bind=engine)
 
 

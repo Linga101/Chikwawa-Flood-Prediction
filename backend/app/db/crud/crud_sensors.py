@@ -7,7 +7,6 @@ def create_sensor_reading(db: Session, source: str, value: float, geometry=None)
         source=source,
         value=value,
         timestamp=datetime.utcnow(),
-        geometry=geometry
     )
     db.add(db_reading)
     db.commit()
