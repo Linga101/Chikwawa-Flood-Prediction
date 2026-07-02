@@ -1,15 +1,18 @@
 import ee
 from app.core.ingestion.gee_client import initialize_gee
+from app.core.ingestion.ta_geodata import get_ta_feature_collection
 from datetime import datetime, timedelta
 
-def fetch_soil_moisture():
+def fetch_soil_moisture() -> dict:
     """
-    Pulls the latest SMAP (Soil Moisture Active Passive) data from GEE.
+    Pulls the latest SMAP (Soil Moisture Active Passive) data from GEE
+    for each individual TA zone.
+    Returns a dictionary: {'TA Ngabu': 0.12, 'TA Makhwira': 0.15, ...}
     """
     if not initialize_gee():
         return None
     
-    roi = ee.Geometry.Rectangle([34.5, -16.5, 35.0, -15.8])
+    fc = get_ta_feature_collection()
     
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=14)
@@ -20,14 +23,21 @@ def fetch_soil_moisture():
         .select('soil_moisture_am')
     
     if dataset.size().getInfo() == 0:
-        return 0.0
+        return {}
     
     latest_img = dataset.sort('system:time_start', False).first()
     
-    stats = latest_img.reduceRegion(
+    stats = latest_img.reduceRegions(
+        collection=fc,
         reducer=ee.Reducer.mean(),
-        geometry=roi,
         scale=36000 # SMAP resolution is approx 36km
     ).getInfo()
     
-    return stats.get('soil_moisture_am', 0.0)
+    results = {}
+    if stats and 'features' in stats:
+        for feat in stats['features']:
+            name = feat['properties'].get('name')
+            val = feat['properties'].get('mean', 0.0)
+            results[name] = val
+            
+    return results

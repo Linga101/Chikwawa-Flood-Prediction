@@ -72,39 +72,33 @@ def resample_to_grid(raw_data: dict, grid_geojson_path: str) -> pd.DataFrame:
       • Live sensor readings from raw_data (rainfall, NDVI, river level, soil moisture)
 
     raw_data keys expected (all optional with sensible defaults):
-      rainfall     – current rainfall (mm) from GPM
-      ndvi         – live NDVI from Sentinel-2 / MODIS
-      river_level  – Shire River level (m) from DAHITI
-      soil_moisture– volumetric water content from SMAP (0-1)
+      rainfall     – current rainfall (mm) from GPM (float or dict per TA)
+      ndvi         – live NDVI from Sentinel-2 / MODIS (float or dict per TA)
+      river_level  – Shire River level (m) from DAHITI (float)
+      soil_moisture– volumetric water content from SMAP (0-1) (float or dict per TA)
     """
-    # ── Live values (same for all zones – district-level sensors) ───────────
-    live_rainfall    = raw_data.get("rainfall",     0.0)   or 0.0
-    live_ndvi        = raw_data.get("ndvi",         0.45)  or 0.45
-    live_river_m     = raw_data.get("river_level",  0.0)   or 0.0
-    live_soil        = raw_data.get("soil_moisture", 0.0)  or 0.0
+    live_river_m = raw_data.get("river_level", 0.0) or 0.0
 
     # ── Baseline dry-season river level at DAHITI station 12087 ─────────────
-    # When river is at baseline, static elevation_to_river values apply.
-    # When river rises above baseline, the effective height above water surface
-    # shrinks proportionally — this is real hydrology.
     RIVER_BASELINE_M = 3.5  # approximate Shire low-water stage (dry season)
     river_rise = max(0.0, live_river_m - RIVER_BASELINE_M)
 
-    # ── Soil moisture amplifies effective rainfall impact ────────────────────
-    # Saturated soil (high moisture) reduces infiltration, so more rainfall
-    # becomes surface runoff.  Amplification factor: 1.0 (dry) → ~2.0 (wet).
-    # SMAP range: 0.0 – 0.5 m³/m³  →  factor: 1.0 – 2.0
-    soil_amplification = 1.0 + (live_soil * 2.0)
-
     rows = []
     for ta_name, profile in TA_ZONE_PROFILES.items():
-        # Dynamically adjust elevation_to_river using live DAHITI river level.
-        # If river rises above baseline, the effective gap above water shrinks.
         static_elev_to_river = profile["elevation_to_river"]
         dynamic_elev_to_river = max(0.0, static_elev_to_river - river_rise)
 
-        # Amplify rainfall using live SMAP soil moisture.
-        # Dry soil absorbs rain; saturated soil converts rain to runoff.
+        # Get TA-specific live values
+        rainfall_data = raw_data.get("rainfall")
+        ndvi_data = raw_data.get("ndvi")
+        soil_data = raw_data.get("soil_moisture")
+        
+        live_rainfall = rainfall_data.get(ta_name, 0.0) if isinstance(rainfall_data, dict) else (rainfall_data or 0.0)
+        live_ndvi = ndvi_data.get(ta_name, 0.45) if isinstance(ndvi_data, dict) else (ndvi_data or 0.45)
+        live_soil = soil_data.get(ta_name, 0.0) if isinstance(soil_data, dict) else (soil_data or 0.0)
+
+        # ── Soil moisture amplifies effective rainfall impact ────────────────────
+        soil_amplification = 1.0 + (live_soil * 2.0)
         effective_rainfall = live_rainfall * soil_amplification
 
         row = {

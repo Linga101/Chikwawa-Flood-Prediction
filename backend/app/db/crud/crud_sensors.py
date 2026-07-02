@@ -2,10 +2,11 @@ from sqlalchemy.orm import Session
 from app.db.models.SensorReading import SensorReading
 from datetime import datetime
 
-def create_sensor_reading(db: Session, source: str, value: float, geometry=None):
+def create_sensor_reading(db: Session, source: str, value: float, grid_id: str = None, geometry=None):
     db_reading = SensorReading(
         source=source,
         value=value,
+        grid_id=grid_id,
         timestamp=datetime.utcnow(),
     )
     db.add(db_reading)

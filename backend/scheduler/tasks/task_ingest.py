@@ -23,10 +23,20 @@ def run_ingestion_cycle(self):
         river_level = asyncio.run(fetch_river_level())
         
         # 2. Save to database
-        create_sensor_reading(db, "GPM", rainfall)
-        create_sensor_reading(db, "SMAP", soil_moisture)
-        create_sensor_reading(db, "Sentinel-2", ndvi)
+        # river_level is a float (single point gauge)
         create_sensor_reading(db, "DAHITI", river_level)
+        
+        # Helper to insert either a dict of per-TA values or a fallback float
+        def save_sensor_data(source_name: str, data):
+            if isinstance(data, dict):
+                for ta_name, val in data.items():
+                    create_sensor_reading(db, source_name, val, grid_id=ta_name)
+            else:
+                create_sensor_reading(db, source_name, data or 0.0)
+                
+        save_sensor_data("GPM", rainfall)
+        save_sensor_data("SMAP", soil_moisture)
+        save_sensor_data("Sentinel-2", ndvi)
         
         # 3. Trigger prediction cycle (chaining)
         from scheduler.tasks.task_predict import run_prediction_cycle
